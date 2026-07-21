@@ -1,14 +1,5 @@
-import Sidebar from "@/components/layout/Sidebar";
+import { redirect } from "next/navigation";
 
-export default function Home() {
-  return (
-    <main>
-      <Sidebar/>
-
-      <section>
-        <h1>SellerOS AI</h1>
-        <p>Welcome to our first application!</p>
-      </section>
-    </main>
-  );
+export default function HomePage() {
+  redirect("/dashboard");
 }
