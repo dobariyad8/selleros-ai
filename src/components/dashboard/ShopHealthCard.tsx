@@ -20,10 +20,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import {
-  analyzeListing,
-  calculateAverageScore,
-} from "@/lib/scoring/analyzeListing";
+import { calculateAverageScore } from "@/lib/scoring/analyzeListing";
 
 type HealthScore = {
   name: string;
@@ -68,14 +65,14 @@ function ScoreStatusIcon({
 
 export default function ShopHealthCard() {
   const {
-    listings,
+    analyzedListings,
     isLoading,
     error,
   } = useListings();
 
   const healthData = useMemo(() => {
-    const analyses = listings.map(
-      (listing) => analyzeListing(listing),
+    const analyses = analyzedListings.map(
+      ({ analysis }) => analysis,
     );
 
     const scores: HealthScore[] = [
@@ -136,7 +133,7 @@ export default function ShopHealthCard() {
       scores,
       analyzedCount: analyses.length,
     };
-  }, [listings]);
+  }, [analyzedListings]);
 
   if (isLoading) {
     return (

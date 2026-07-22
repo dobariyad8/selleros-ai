@@ -11,10 +11,7 @@ import {
 } from "lucide-react";
 
 import { useListings } from "@/hooks/useListings";
-import {
-  analyzeListing,
-  calculateAverageScore,
-} from "@/lib/scoring/analyzeListing";
+import { calculateAverageScore } from "@/lib/scoring/analyzeListing";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,18 +23,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AIOpportunitySummary() {
   const {
-    listings,
+    analyzedListings,
     isLoading,
     error,
   } = useListings();
 
   const opportunityData = useMemo(() => {
-    const analyzedListings = listings.map(
-      (listing) => {
-        const analysis =
-          analyzeListing(listing);
-
-        return {
+    const opportunityListings =
+      analyzedListings.map(
+        ({ listing, analysis }) => ({
           id: String(listing.id),
           title:
             listing.title?.trim() ||
@@ -46,34 +40,33 @@ export default function AIOpportunitySummary() {
             analysis.scores.overall,
           opportunityCount:
             analysis.opportunityCount,
-        };
-      },
-    );
+        }),
+      );
 
     const averageHealth =
       calculateAverageScore(
-        analyzedListings.map(
+        opportunityListings.map(
           (listing) =>
             listing.overallScore,
         ),
       );
 
     const highPriorityCount =
-      analyzedListings.filter(
+      opportunityListings.filter(
         (listing) =>
           listing.overallScore < 55,
       ).length;
 
     const opportunityCount =
-      analyzedListings.reduce(
+      opportunityListings.reduce(
         (sum, listing) =>
           sum + listing.opportunityCount,
         0,
       );
 
     const lowestScoringListing =
-      analyzedListings.reduce<
-        (typeof analyzedListings)[number] | null
+      opportunityListings.reduce<
+        (typeof opportunityListings)[number] | null
       >((lowest, current) => {
         if (
           !lowest ||
@@ -88,13 +81,13 @@ export default function AIOpportunitySummary() {
 
     return {
       analyzedCount:
-        analyzedListings.length,
+        opportunityListings.length,
       averageHealth,
       highPriorityCount,
       opportunityCount,
       lowestScoringListing,
     };
-  }, [listings]);
+  }, [analyzedListings]);
 
   if (isLoading) {
     return (

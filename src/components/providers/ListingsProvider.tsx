@@ -14,6 +14,11 @@ import type {
   SellerOsListing,
 } from "@/lib/etsy/types";
 
+import {
+  analyzeListing,
+  type ListingAnalysis,
+} from "@/lib/scoring/analyzeListing";
+
 type ListingsApiResponse = {
   success: boolean;
   shop?: EtsyShopSummary;
@@ -23,8 +28,14 @@ type ListingsApiResponse = {
   error?: string;
 };
 
+export type AnalyzedListing = {
+  listing: SellerOsListing;
+  analysis: ListingAnalysis;
+};
+
 export type ListingsContextValue = {
   listings: SellerOsListing[];
+  analyzedListings: AnalyzedListing[];
   shop: EtsyShopSummary | null;
   count: number;
   totalAvailable: number;
@@ -32,12 +43,17 @@ export type ListingsContextValue = {
   isRefreshing: boolean;
   error: string | null;
 
-  setListings: (listings: SellerOsListing[]) => void;
+  setListings: (
+    listings: SellerOsListing[],
+  ) => void;
+
   refreshListings: () => Promise<void>;
 };
 
 export const ListingsContext =
-  createContext<ListingsContextValue | null>(null);
+  createContext<ListingsContextValue | null>(
+    null,
+  );
 
 type ListingsProviderProps = {
   children: ReactNode;
@@ -46,9 +62,8 @@ type ListingsProviderProps = {
 export function ListingsProvider({
   children,
 }: ListingsProviderProps) {
-  const [listingState, setListingState] = useState<
-    SellerOsListing[]
-  >([]);
+  const [listingState, setListingState] =
+    useState<SellerOsListing[]>([]);
 
   const [shop, setShop] =
     useState<EtsyShopSummary | null>(null);
@@ -58,14 +73,24 @@ export function ListingsProvider({
   const [totalAvailable, setTotalAvailable] =
     useState(0);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] =
+    useState(true);
 
   const [isRefreshing, setIsRefreshing] =
     useState(false);
 
-  const [error, setError] = useState<string | null>(
-    null
-  );
+  const [error, setError] =
+    useState<string | null>(null);
+
+  const analyzedListings =
+    useMemo<AnalyzedListing[]>(
+      () =>
+        listingState.map((listing) => ({
+          listing,
+          analysis: analyzeListing(listing),
+        })),
+      [listingState],
+    );
 
   const loadListings = useCallback(
     async (manualRefresh = false) => {
@@ -84,7 +109,7 @@ export function ListingsProvider({
             method: "GET",
             credentials: "include",
             cache: "no-store",
-          }
+          },
         );
 
         const data =
@@ -93,20 +118,25 @@ export function ListingsProvider({
         if (!response.ok || !data.success) {
           throw new Error(
             data.error ??
-              "Could not retrieve Etsy listings."
+              "Could not retrieve Etsy listings.",
           );
         }
 
-        const receivedListings = data.listings ?? [];
+        const receivedListings =
+          data.listings ?? [];
 
         setListingState(receivedListings);
         setShop(data.shop ?? null);
-        setCount(data.count ?? receivedListings.length);
+
+        setCount(
+          data.count ??
+            receivedListings.length,
+        );
 
         setTotalAvailable(
           data.totalAvailable ??
             data.count ??
-            receivedListings.length
+            receivedListings.length,
         );
       } catch (caughtError) {
         const message =
@@ -120,28 +150,19 @@ export function ListingsProvider({
         setIsRefreshing(false);
       }
     },
-    []
+    [],
   );
 
-  const refreshListings = useCallback(async () => {
-    await loadListings(true);
-  }, [loadListings]);
+  const refreshListings =
+    useCallback(async () => {
+      await loadListings(true);
+    }, [loadListings]);
 
-  /*
-   * This runs once when the provider is mounted.
-   * loadListings is stable because it uses useCallback.
-   */
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadListings();
   }, [loadListings]);
 
-  /*
-   * Used by the CSV importer.
-   *
-   * We update the listings and counts together so the UI
-   * remains consistent after importing a CSV file.
-   */
   const setListings = useCallback(
     (listings: SellerOsListing[]) => {
       setListingState(listings);
@@ -149,33 +170,36 @@ export function ListingsProvider({
       setTotalAvailable(listings.length);
       setError(null);
     },
-    []
+    [],
   );
 
-  const value = useMemo<ListingsContextValue>(
-    () => ({
-      listings: listingState,
-      shop,
-      count,
-      totalAvailable,
-      isLoading,
-      isRefreshing,
-      error,
-      setListings,
-      refreshListings,
-    }),
-    [
-      listingState,
-      shop,
-      count,
-      totalAvailable,
-      isLoading,
-      isRefreshing,
-      error,
-      setListings,
-      refreshListings,
-    ]
-  );
+  const value =
+    useMemo<ListingsContextValue>(
+      () => ({
+        listings: listingState,
+        analyzedListings,
+        shop,
+        count,
+        totalAvailable,
+        isLoading,
+        isRefreshing,
+        error,
+        setListings,
+        refreshListings,
+      }),
+      [
+        listingState,
+        analyzedListings,
+        shop,
+        count,
+        totalAvailable,
+        isLoading,
+        isRefreshing,
+        error,
+        setListings,
+        refreshListings,
+      ],
+    );
 
   return (
     <ListingsContext.Provider value={value}>

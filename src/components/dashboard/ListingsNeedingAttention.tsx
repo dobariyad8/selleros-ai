@@ -13,10 +13,7 @@ import {
 } from "lucide-react";
 
 import { useListings } from "@/hooks/useListings";
-import {
-  analyzeListing,
-  type ListingScoreCategory,
-} from "@/lib/scoring/analyzeListing";
+import type { ListingScoreCategory } from "@/lib/scoring/analyzeListing";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -116,42 +113,41 @@ function getIssueMessage(
 
 export default function ListingsNeedingAttention() {
   const {
-    listings,
+    analyzedListings,
     isLoading,
     error,
   } = useListings();
 
   const attentionData = useMemo(() => {
-    const analyzedListings: ListingAttention[] =
-      listings.map((listing) => {
-        const analysis =
-          analyzeListing(listing);
+    const attentionListings: ListingAttention[] =
+      analyzedListings.map(
+        ({ listing, analysis }) => {
+          const weakestCategory =
+            analysis.weakestCategory;
 
-        const weakestCategory =
-          analysis.weakestCategory;
-
-        return {
-          id: String(listing.id),
-          title:
-            listing.title?.trim() ||
-            "Untitled listing",
-          issueCategory:
-            weakestCategory.category,
-          issue: getIssueMessage(
-            weakestCategory.category,
-            weakestCategory.score,
-          ),
-          score: analysis.scores.overall,
-          weakestScore:
-            weakestCategory.score,
-          priority: getPriority(
-            analysis.scores.overall,
-          ),
-        };
-      });
+          return {
+            id: String(listing.id),
+            title:
+              listing.title?.trim() ||
+              "Untitled listing",
+            issueCategory:
+              weakestCategory.category,
+            issue: getIssueMessage(
+              weakestCategory.category,
+              weakestCategory.score,
+            ),
+            score: analysis.scores.overall,
+            weakestScore:
+              weakestCategory.score,
+            priority: getPriority(
+              analysis.scores.overall,
+            ),
+          };
+        },
+      );
 
     const allNeedingAttention =
-      analyzedListings
+      attentionListings
         .filter((listing) => listing.score < 80)
         .sort((first, second) => {
           if (first.score !== second.score) {
@@ -165,12 +161,11 @@ export default function ListingsNeedingAttention() {
         });
 
     return {
-      totalCount:
-        allNeedingAttention.length,
+      totalCount: allNeedingAttention.length,
       visibleListings:
         allNeedingAttention.slice(0, 3),
     };
-  }, [listings]);
+  }, [analyzedListings]);
 
   if (isLoading) {
     return (
@@ -251,10 +246,9 @@ export default function ListingsNeedingAttention() {
           <div className="space-y-3">
             {attentionData.visibleListings.map(
               (listing) => {
-                const IssueIcon =
-                  getIssueIcon(
-                    listing.issueCategory,
-                  );
+                const IssueIcon = getIssueIcon(
+                  listing.issueCategory,
+                );
 
                 return (
                   <div

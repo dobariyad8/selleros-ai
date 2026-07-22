@@ -19,10 +19,7 @@ import AIFixWorkspace, {
 } from "./AIFixWorkspace";
 
 import { useListings } from "@/hooks/useListings";
-import {
-  analyzeListing,
-  type ListingScoreCategory,
-} from "@/lib/scoring/analyzeListing";
+import type { ListingScoreCategory } from "@/lib/scoring/analyzeListing";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -164,7 +161,7 @@ function getRecommendationContent(
 
 export default function AIRecommendations() {
   const {
-    listings,
+    analyzedListings,
     isLoading,
     error,
   } = useListings();
@@ -182,72 +179,70 @@ export default function AIRecommendations() {
 
   const recommendationData = useMemo(() => {
     const generatedRecommendations:
-      ListingRecommendation[] = listings
-      .map((listing) => {
-        const analysis =
-          analyzeListing(listing);
+      ListingRecommendation[] =
+      analyzedListings
+        .map(({ listing, analysis }) => {
+          const weakestCategory =
+            analysis.weakestCategory;
 
-        const weakestCategory =
-          analysis.weakestCategory;
+          const recommendationType =
+            categoryToRecommendationType(
+              weakestCategory.category,
+            );
 
-        const recommendationType =
-          categoryToRecommendationType(
-            weakestCategory.category,
-          );
-
-        const content =
-          getRecommendationContent(
-            weakestCategory.category,
-            weakestCategory.score,
-          );
-
-        return {
-          id: `${listing.id}-${weakestCategory.category.toLowerCase()}`,
-          listingId: String(listing.id),
-          listingTitle:
-            listing.title?.trim() ||
-            "Untitled listing",
-          listingScore:
-            analysis.scores.overall,
-          categoryScore:
-            weakestCategory.score,
-          type: recommendationType,
-          title: content.title,
-          reason: content.reason,
-          action: content.action,
-          priority:
-            getRecommendationPriority(
+          const content =
+            getRecommendationContent(
+              weakestCategory.category,
               weakestCategory.score,
-            ),
-        };
-      })
-      .filter(
-        (recommendation) =>
-          recommendation.categoryScore < 80,
-      )
-      .sort((first, second) => {
-        if (
-          first.categoryScore !==
-          second.categoryScore
-        ) {
-          return (
-            first.categoryScore -
-            second.categoryScore
-          );
-        }
+            );
 
-        return (
-          first.listingScore -
-          second.listingScore
-        );
-      });
+          return {
+            id: `${listing.id}-${weakestCategory.category.toLowerCase()}`,
+            listingId: String(listing.id),
+            listingTitle:
+              listing.title?.trim() ||
+              "Untitled listing",
+            listingScore:
+              analysis.scores.overall,
+            categoryScore:
+              weakestCategory.score,
+            type: recommendationType,
+            title: content.title,
+            reason: content.reason,
+            action: content.action,
+            priority:
+              getRecommendationPriority(
+                weakestCategory.score,
+              ),
+          };
+        })
+        .filter(
+          (recommendation) =>
+            recommendation.categoryScore < 80,
+        )
+        .sort((first, second) => {
+          if (
+            first.categoryScore !==
+            second.categoryScore
+          ) {
+            return (
+              first.categoryScore -
+              second.categoryScore
+            );
+          }
+
+          return (
+            first.listingScore -
+            second.listingScore
+          );
+        });
 
     return {
       all: generatedRecommendations,
       displayed:
         generatedRecommendations.slice(0, 3),
     };
-  }, [listings]);
+  }, [analyzedListings]);
 
   function openWorkspace(
     recommendation: WorkspaceRecommendation,
