@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Menu,
-  Settings,
   Sparkles,
 } from "lucide-react";
 
@@ -113,22 +112,6 @@ export default function MobileSidebar() {
             })}
           </div>
         </nav>
-
-        <div className="border-t p-3">
-          <div
-            aria-disabled="true"
-            title="Settings page coming soon"
-            className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground/60"
-          >
-            <Settings className="size-4 shrink-0" />
-
-            <span>Settings</span>
-
-            <span className="ml-auto text-[10px]">
-              Soon
-            </span>
-          </div>
-        </div>
       </SheetContent>
     </Sheet>
   );

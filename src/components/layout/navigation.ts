@@ -4,6 +4,7 @@ import {
   ImageIcon,
   LayoutDashboard,
   ListChecks,
+  Settings,
   Sparkles,
   Tags,
   Trophy,
@@ -56,6 +57,11 @@ export const navigationItems: NavigationItem[] = [
     name: "Images",
     href: "/images",
     icon: ImageIcon,
+  },
+  {
+    name: "Settings",
+    href: "/settings",
+    icon: Settings,
   },
 ];
 
