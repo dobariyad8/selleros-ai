@@ -13,6 +13,10 @@ import {
 } from "lucide-react";
 
 import { useListings } from "@/hooks/useListings";
+import {
+  analyzeListing,
+  type ListingScoreCategory,
+} from "@/lib/scoring/analyzeListing";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,37 +29,16 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { calculateDescriptionScore } from "@/lib/scoring/descriptionScore";
-import { calculateImageScore } from "@/lib/scoring/imageScore";
-import { calculateOverallScore } from "@/lib/scoring/overallScore";
-import { calculatePricingScore } from "@/lib/scoring/pricingScore";
-import { calculateTagScore } from "@/lib/scoring/tagScore";
-import { calculateTitleScore } from "@/lib/scoring/titleScore";
-
 type ListingPriority = "High" | "Medium" | "Low";
 
 type ListingAttention = {
   id: string;
   title: string;
   issue: string;
-  issueCategory:
-    | "Title"
-    | "Tags"
-    | "Description"
-    | "Images"
-    | "Pricing";
+  issueCategory: ListingScoreCategory;
   score: number;
   weakestScore: number;
   priority: ListingPriority;
-};
-
-/*
- * This optional legacy prop is temporarily retained so the
- * current dashboard page continues compiling. The component
- * now uses real listings from ListingsProvider.
- */
-type ListingsNeedingAttentionProps = {
-  listings?: unknown[];
 };
 
 function getPriorityVariant(
@@ -87,7 +70,7 @@ function getPriority(
 }
 
 function getIssueIcon(
-  category: ListingAttention["issueCategory"],
+  category: ListingScoreCategory,
 ) {
   if (category === "Images") {
     return ImageIcon;
@@ -109,7 +92,7 @@ function getIssueIcon(
 }
 
 function getIssueMessage(
-  category: ListingAttention["issueCategory"],
+  category: ListingScoreCategory,
   score: number,
 ) {
   if (category === "Title") {
@@ -131,15 +114,7 @@ function getIssueMessage(
   return `Pricing is the weakest area at ${score}/100. Review the price and compare it with similar products.`;
 }
 
-export default function ListingsNeedingAttention({
-  listings: legacyListings,
-}: ListingsNeedingAttentionProps) {
-  /*
-   * The old dashboard still passes sample data. It is
-   * intentionally ignored until we clean that page next.
-   */
-  void legacyListings;
-
+export default function ListingsNeedingAttention() {
   const {
     listings,
     isLoading,
@@ -149,69 +124,11 @@ export default function ListingsNeedingAttention({
   const attentionData = useMemo(() => {
     const analyzedListings: ListingAttention[] =
       listings.map((listing) => {
-        const titleResult =
-          calculateTitleScore(listing.title);
+        const analysis =
+          analyzeListing(listing);
 
-        const tagResult = calculateTagScore(
-          listing.tags ?? [],
-          listing.title,
-        );
-
-        const descriptionResult =
-          calculateDescriptionScore(
-            listing.description ?? "",
-            listing.title,
-          );
-
-        const imageResult =
-          calculateImageScore(
-            listing.imageUrls ?? [],
-          );
-
-        const pricingResult =
-          calculatePricingScore(
-            Number(listing.price ?? 0),
-          );
-
-        const overallResult =
-          calculateOverallScore({
-            title: titleResult.score,
-            tags: tagResult.score,
-            description:
-              descriptionResult.score,
-            images: imageResult.score,
-            pricing: pricingResult.score,
-          });
-
-        const categoryScores = [
-          {
-            category: "Title" as const,
-            score: titleResult.score,
-          },
-          {
-            category: "Tags" as const,
-            score: tagResult.score,
-          },
-          {
-            category: "Description" as const,
-            score: descriptionResult.score,
-          },
-          {
-            category: "Images" as const,
-            score: imageResult.score,
-          },
-          {
-            category: "Pricing" as const,
-            score: pricingResult.score,
-          },
-        ];
-
-        const weakestCategory = [
-          ...categoryScores,
-        ].sort(
-          (first, second) =>
-            first.score - second.score,
-        )[0];
+        const weakestCategory =
+          analysis.weakestCategory;
 
         return {
           id: String(listing.id),
@@ -224,11 +141,11 @@ export default function ListingsNeedingAttention({
             weakestCategory.category,
             weakestCategory.score,
           ),
-          score: overallResult.score,
+          score: analysis.scores.overall,
           weakestScore:
             weakestCategory.score,
           priority: getPriority(
-            overallResult.score,
+            analysis.scores.overall,
           ),
         };
       });

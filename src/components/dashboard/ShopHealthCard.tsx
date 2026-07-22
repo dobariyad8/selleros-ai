@@ -20,26 +20,14 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { calculateDescriptionScore } from "@/lib/scoring/descriptionScore";
-import { calculateImageScore } from "@/lib/scoring/imageScore";
-import { calculateOverallScore } from "@/lib/scoring/overallScore";
-import { calculatePricingScore } from "@/lib/scoring/pricingScore";
-import { calculateTagScore } from "@/lib/scoring/tagScore";
-import { calculateTitleScore } from "@/lib/scoring/titleScore";
+import {
+  analyzeListing,
+  calculateAverageScore,
+} from "@/lib/scoring/analyzeListing";
 
 type HealthScore = {
   name: string;
   score: number;
-};
-
-/*
- * These props are temporarily retained so the current
- * dashboard page continues compiling. The component now
- * calculates its values from real connected listings.
- */
-type ShopHealthCardProps = {
-  overallScore?: number;
-  scores?: HealthScore[];
 };
 
 function getScoreLabel(score: number) {
@@ -78,24 +66,7 @@ function ScoreStatusIcon({
   return <CircleAlert className="size-4" />;
 }
 
-function calculateAverage(
-  values: number[],
-) {
-  if (values.length === 0) {
-    return 0;
-  }
-
-  const total = values.reduce(
-    (sum, value) => sum + value,
-    0,
-  );
-
-  return Math.round(total / values.length);
-}
-
-export default function ShopHealthCard(
-  _props: ShopHealthCardProps,
-) {
+export default function ShopHealthCard() {
   const {
     listings,
     isLoading,
@@ -103,105 +74,67 @@ export default function ShopHealthCard(
   } = useListings();
 
   const healthData = useMemo(() => {
-    const listingResults = listings.map(
-      (listing) => {
-        const titleResult =
-          calculateTitleScore(listing.title);
-
-        const tagResult = calculateTagScore(
-          listing.tags ?? [],
-          listing.title,
-        );
-
-        const descriptionResult =
-          calculateDescriptionScore(
-            listing.description ?? "",
-            listing.title,
-          );
-
-        const imageResult =
-          calculateImageScore(
-            listing.imageUrls ?? [],
-          );
-
-        const pricingResult =
-          calculatePricingScore(
-            Number(listing.price ?? 0),
-          );
-
-        const overallResult =
-          calculateOverallScore({
-            title: titleResult.score,
-            tags: tagResult.score,
-            description:
-              descriptionResult.score,
-            images: imageResult.score,
-            pricing: pricingResult.score,
-          });
-
-        return {
-          title: titleResult.score,
-          tags: tagResult.score,
-          description:
-            descriptionResult.score,
-          images: imageResult.score,
-          pricing: pricingResult.score,
-          overall: overallResult.score,
-        };
-      },
+    const analyses = listings.map(
+      (listing) => analyzeListing(listing),
     );
 
     const scores: HealthScore[] = [
       {
         name: "Titles",
-        score: calculateAverage(
-          listingResults.map(
-            (result) => result.title,
+        score: calculateAverageScore(
+          analyses.map(
+            (analysis) =>
+              analysis.scores.title,
           ),
         ),
       },
       {
         name: "Tags",
-        score: calculateAverage(
-          listingResults.map(
-            (result) => result.tags,
+        score: calculateAverageScore(
+          analyses.map(
+            (analysis) =>
+              analysis.scores.tags,
           ),
         ),
       },
       {
         name: "Descriptions",
-        score: calculateAverage(
-          listingResults.map(
-            (result) => result.description,
+        score: calculateAverageScore(
+          analyses.map(
+            (analysis) =>
+              analysis.scores.description,
           ),
         ),
       },
       {
         name: "Images",
-        score: calculateAverage(
-          listingResults.map(
-            (result) => result.images,
+        score: calculateAverageScore(
+          analyses.map(
+            (analysis) =>
+              analysis.scores.images,
           ),
         ),
       },
       {
         name: "Pricing",
-        score: calculateAverage(
-          listingResults.map(
-            (result) => result.pricing,
+        score: calculateAverageScore(
+          analyses.map(
+            (analysis) =>
+              analysis.scores.pricing,
           ),
         ),
       },
     ];
 
     return {
-      overallScore: calculateAverage(
-        listingResults.map(
-          (result) => result.overall,
+      overallScore: calculateAverageScore(
+        analyses.map(
+          (analysis) =>
+            analysis.scores.overall,
         ),
       ),
       scores,
-      analyzedCount: listingResults.length,
+      analyzedCount: analyses.length,
     };
   }, [listings]);
 

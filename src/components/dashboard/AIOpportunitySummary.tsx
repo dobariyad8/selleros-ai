@@ -11,6 +11,10 @@ import {
 } from "lucide-react";
 
 import { useListings } from "@/hooks/useListings";
+import {
+  analyzeListing,
+  calculateAverageScore,
+} from "@/lib/scoring/analyzeListing";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,30 +24,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { calculateDescriptionScore } from "@/lib/scoring/descriptionScore";
-import { calculateImageScore } from "@/lib/scoring/imageScore";
-import { calculateOverallScore } from "@/lib/scoring/overallScore";
-import { calculatePricingScore } from "@/lib/scoring/pricingScore";
-import { calculateTagScore } from "@/lib/scoring/tagScore";
-import { calculateTitleScore } from "@/lib/scoring/titleScore";
-
-/*
- * These optional legacy props are temporarily retained
- * so the current dashboard page continues compiling.
- * The component now calculates its values from listings.
- */
-type AIOpportunitySummaryProps = {
-  sellerName?: string;
-  highPriorityCount?: number;
-  potentialRevenue?: number;
-  confidence?: number;
-};
-
-export default function AIOpportunitySummary(
-  legacyProps: AIOpportunitySummaryProps,
-) {
-  void legacyProps;
-
+export default function AIOpportunitySummary() {
   const {
     listings,
     isLoading,
@@ -53,75 +34,29 @@ export default function AIOpportunitySummary(
   const opportunityData = useMemo(() => {
     const analyzedListings = listings.map(
       (listing) => {
-        const titleResult =
-          calculateTitleScore(listing.title);
-
-        const tagResult = calculateTagScore(
-          listing.tags ?? [],
-          listing.title,
-        );
-
-        const descriptionResult =
-          calculateDescriptionScore(
-            listing.description ?? "",
-            listing.title,
-          );
-
-        const imageResult =
-          calculateImageScore(
-            listing.imageUrls ?? [],
-          );
-
-        const pricingResult =
-          calculatePricingScore(
-            Number(listing.price ?? 0),
-          );
-
-        const categoryScores = [
-          titleResult.score,
-          tagResult.score,
-          descriptionResult.score,
-          imageResult.score,
-          pricingResult.score,
-        ];
-
-        const overallResult =
-          calculateOverallScore({
-            title: titleResult.score,
-            tags: tagResult.score,
-            description:
-              descriptionResult.score,
-            images: imageResult.score,
-            pricing: pricingResult.score,
-          });
+        const analysis =
+          analyzeListing(listing);
 
         return {
           id: String(listing.id),
           title:
             listing.title?.trim() ||
             "Untitled listing",
-          overallScore: overallResult.score,
+          overallScore:
+            analysis.scores.overall,
           opportunityCount:
-            categoryScores.filter(
-              (score) => score < 70,
-            ).length,
+            analysis.opportunityCount,
         };
       },
     );
 
-    const totalScore = analyzedListings.reduce(
-      (sum, listing) =>
-        sum + listing.overallScore,
-      0,
-    );
-
     const averageHealth =
-      analyzedListings.length > 0
-        ? Math.round(
-            totalScore /
-              analyzedListings.length,
-          )
-        : 0;
+      calculateAverageScore(
+        analyzedListings.map(
+          (listing) =>
+            listing.overallScore,
+        ),
+      );
 
     const highPriorityCount =
       analyzedListings.filter(
@@ -137,11 +72,19 @@ export default function AIOpportunitySummary(
       );
 
     const lowestScoringListing =
-      [...analyzedListings].sort(
-        (first, second) =>
-          first.overallScore -
-          second.overallScore,
-      )[0] ?? null;
+      analyzedListings.reduce<
+        (typeof analyzedListings)[number] | null
+      >((lowest, current) => {
+        if (
+          !lowest ||
+          current.overallScore <
+            lowest.overallScore
+        ) {
+          return current;
+        }
+
+        return lowest;
+      }, null);
 
     return {
       analyzedCount:
@@ -165,7 +108,7 @@ export default function AIOpportunitySummary(
               <Skeleton className="h-10 w-48" />
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[520px]">
+            <div className="grid gap-3 sm:grid-cols-3 xl:min-w-130">
               {Array.from({ length: 3 }).map(
                 (_, index) => (
                   <Skeleton
@@ -205,7 +148,7 @@ export default function AIOpportunitySummary(
 
   if (opportunityData.analyzedCount === 0) {
     return (
-      <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-background to-background">
+      <Card className="overflow-hidden border-primary/20 bg-linear-to-br from-primary/10 via-background to-background">
         <CardContent className="p-6">
           <Badge
             variant="outline"
@@ -238,7 +181,7 @@ export default function AIOpportunitySummary(
   }
 
   return (
-    <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-background to-background">
+    <Card className="overflow-hidden border-primary/20 bg-linear-to-br from-primary/10 via-background to-background">
       <CardContent className="p-6">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
           <div className="max-w-2xl">
@@ -299,7 +242,7 @@ export default function AIOpportunitySummary(
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[520px]">
+          <div className="grid gap-3 sm:grid-cols-3 xl:min-w-130">
             <div className="rounded-xl border bg-background/80 p-4">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <ListChecks className="size-4" />

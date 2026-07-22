@@ -11,13 +11,10 @@ import {
 import StatCard from "@/components/dashboard/StatCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListings } from "@/hooks/useListings";
-
-import { calculateDescriptionScore } from "@/lib/scoring/descriptionScore";
-import { calculateImageScore } from "@/lib/scoring/imageScore";
-import { calculateOverallScore } from "@/lib/scoring/overallScore";
-import { calculatePricingScore } from "@/lib/scoring/pricingScore";
-import { calculateTagScore } from "@/lib/scoring/tagScore";
-import { calculateTitleScore } from "@/lib/scoring/titleScore";
+import {
+  analyzeListing,
+  calculateAverageScore,
+} from "@/lib/scoring/analyzeListing";
 
 export default function LiveDashboardStats() {
   const {
@@ -33,60 +30,21 @@ export default function LiveDashboardStats() {
         listing.status.toLowerCase() === "active",
     ).length;
 
-    const listingScores = listings.map((listing) => {
-      const titleResult = calculateTitleScore(
-        listing.title,
-      );
-
-      const tagResult = calculateTagScore(
-        listing.tags ?? [],
-        listing.title,
-      );
-
-      const descriptionResult =
-        calculateDescriptionScore(
-          listing.description ?? "",
-          listing.title,
-        );
-
-      const imageResult = calculateImageScore(
-        listing.imageUrls ?? [],
-      );
-
-      const pricingResult = calculatePricingScore(
-        Number(listing.price ?? 0),
-      );
-
-      return calculateOverallScore({
-        title: titleResult.score,
-        tags: tagResult.score,
-        description: descriptionResult.score,
-        images: imageResult.score,
-        pricing: pricingResult.score,
-      }).score;
-    });
-
-    const averageScore =
-      listingScores.length > 0
-        ? Math.round(
-            listingScores.reduce(
-              (total, score) => total + score,
-              0,
-            ) / listingScores.length,
-          )
-        : 0;
-
-    const listingsNeedingAttention =
-      listingScores.filter(
-        (score) => score < 70,
-      ).length;
+    const listingScores = listings.map(
+      (listing) =>
+        analyzeListing(listing).scores.overall,
+    );
 
     return {
       totalListings:
-        totalAvailable || listings.length,
+        totalAvailable ?? listings.length,
       activeListings,
-      averageScore,
-      listingsNeedingAttention,
+      averageScore:
+        calculateAverageScore(listingScores),
+      listingsNeedingAttention:
+        listingScores.filter(
+          (score) => score < 70,
+        ).length,
     };
   }, [listings, totalAvailable]);
 
@@ -108,8 +66,7 @@ export default function LiveDashboardStats() {
   if (error) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-        Dashboard statistics could not be loaded:
-        {" "}
+        Dashboard statistics could not be loaded:{" "}
         {error}
       </div>
     );
@@ -118,13 +75,17 @@ export default function LiveDashboardStats() {
   const stats = [
     {
       title: "Total Listings",
-      value: String(statistics.totalListings),
+      value: String(
+        statistics.totalListings,
+      ),
       description: "Connected Etsy listings",
       icon: Package,
     },
     {
       title: "Active Listings",
-      value: String(statistics.activeListings),
+      value: String(
+        statistics.activeListings,
+      ),
       description: "Currently active on Etsy",
       icon: CircleCheckBig,
     },

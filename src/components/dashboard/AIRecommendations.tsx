@@ -19,6 +19,10 @@ import AIFixWorkspace, {
 } from "./AIFixWorkspace";
 
 import { useListings } from "@/hooks/useListings";
+import {
+  analyzeListing,
+  type ListingScoreCategory,
+} from "@/lib/scoring/analyzeListing";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,13 +35,6 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { calculateDescriptionScore } from "@/lib/scoring/descriptionScore";
-import { calculateImageScore } from "@/lib/scoring/imageScore";
-import { calculateOverallScore } from "@/lib/scoring/overallScore";
-import { calculatePricingScore } from "@/lib/scoring/pricingScore";
-import { calculateTagScore } from "@/lib/scoring/tagScore";
-import { calculateTitleScore } from "@/lib/scoring/titleScore";
-
 type RecommendationPriority =
   | "High"
   | "Medium"
@@ -48,14 +45,6 @@ type ListingRecommendation =
     categoryScore: number;
     listingScore: number;
   };
-
-/*
- * Temporarily retained so the dashboard page continues
- * compiling. Sample recommendations are now ignored.
- */
-type AIRecommendationsProps = {
-  recommendations?: unknown[];
-};
 
 function getPriorityVariant(
   priority: RecommendationPriority,
@@ -85,6 +74,20 @@ function getRecommendationPriority(
   return "Low";
 }
 
+function categoryToRecommendationType(
+  category: ListingScoreCategory,
+): RecommendationType {
+  if (category === "Title") {
+    return "SEO";
+  }
+
+  if (category === "Images") {
+    return "Image";
+  }
+
+  return category;
+}
+
 function getRecommendationIcon(
   type: RecommendationType,
 ): LucideIcon {
@@ -112,19 +115,19 @@ function getRecommendationIcon(
 }
 
 function getRecommendationContent(
-  type: RecommendationType,
+  category: ListingScoreCategory,
   score: number,
 ) {
-  if (type === "SEO") {
+  if (category === "Title") {
     return {
       title: "Improve the listing title",
-      reason: `The title currently scores ${score}/100, making it the weakest part of this listing.`,
+      reason: `The title currently scores ${score}/100, making it the weakest area of this listing.`,
       action:
         "Review the title length, keyword placement, readability, and repeated phrases in the AI audit.",
     };
   }
 
-  if (type === "Tags") {
+  if (category === "Tags") {
     return {
       title: "Strengthen the listing tags",
       reason: `The tags currently score ${score}/100, which may limit the listing's keyword coverage.`,
@@ -133,7 +136,7 @@ function getRecommendationContent(
     };
   }
 
-  if (type === "Description") {
+  if (category === "Description") {
     return {
       title: "Improve the product description",
       reason: `The description currently scores ${score}/100 and may not provide enough structured buyer information.`,
@@ -142,7 +145,7 @@ function getRecommendationContent(
     };
   }
 
-  if (type === "Image") {
+  if (category === "Images") {
     return {
       title: "Improve the listing images",
       reason: `The image section currently scores ${score}/100 and is the weakest area of this listing.`,
@@ -159,11 +162,7 @@ function getRecommendationContent(
   };
 }
 
-export default function AIRecommendations({
-  recommendations: legacyRecommendations,
-}: AIRecommendationsProps) {
-  void legacyRecommendations;
-
+export default function AIRecommendations() {
   const {
     listings,
     isLoading,
@@ -182,123 +181,66 @@ export default function AIRecommendations({
     useState(false);
 
   const recommendationData = useMemo(() => {
-    const generatedRecommendations =
-      listings
-        .map((listing) => {
-          const titleResult =
-            calculateTitleScore(listing.title);
+    const generatedRecommendations:
+      ListingRecommendation[] = listings
+      .map((listing) => {
+        const analysis =
+          analyzeListing(listing);
 
-          const tagResult =
-            calculateTagScore(
-              listing.tags ?? [],
-              listing.title,
-            );
+        const weakestCategory =
+          analysis.weakestCategory;
 
-          const descriptionResult =
-            calculateDescriptionScore(
-              listing.description ?? "",
-              listing.title,
-            );
-
-          const imageResult =
-            calculateImageScore(
-              listing.imageUrls ?? [],
-            );
-
-          const pricingResult =
-            calculatePricingScore(
-              Number(listing.price ?? 0),
-            );
-
-          const overallResult =
-            calculateOverallScore({
-              title: titleResult.score,
-              tags: tagResult.score,
-              description:
-                descriptionResult.score,
-              images: imageResult.score,
-              pricing: pricingResult.score,
-            });
-
-          const categoryScores = [
-            {
-              type: "SEO" as const,
-              score: titleResult.score,
-            },
-            {
-              type: "Tags" as const,
-              score: tagResult.score,
-            },
-            {
-              type: "Description" as const,
-              score: descriptionResult.score,
-            },
-            {
-              type: "Image" as const,
-              score: imageResult.score,
-            },
-            {
-              type: "Pricing" as const,
-              score: pricingResult.score,
-            },
-          ];
-
-          const weakestCategory = [
-            ...categoryScores,
-          ].sort(
-            (first, second) =>
-              first.score - second.score,
-          )[0];
-
-          const content =
-            getRecommendationContent(
-              weakestCategory.type,
-              weakestCategory.score,
-            );
-
-          const recommendation: ListingRecommendation =
-            {
-              id: `${listing.id}-${weakestCategory.type.toLowerCase()}`,
-              listingId: String(listing.id),
-              listingTitle:
-                listing.title?.trim() ||
-                "Untitled listing",
-              listingScore:
-                overallResult.score,
-              categoryScore:
-                weakestCategory.score,
-              type: weakestCategory.type,
-              title: content.title,
-              reason: content.reason,
-              action: content.action,
-              priority:
-                getRecommendationPriority(
-                  weakestCategory.score,
-                ),
-            };
-
-          return recommendation;
-        })
-        .filter(
-          (recommendation) =>
-            recommendation.categoryScore < 80,
-        )
-        .sort((first, second) => {
-          if (
-            first.categoryScore !==
-            second.categoryScore
-          ) {
-            return (
-              first.categoryScore -
-              second.categoryScore
-            );
-          }
-
-          return (
-            first.listingScore -
-            second.listingScore
+        const recommendationType =
+          categoryToRecommendationType(
+            weakestCategory.category,
           );
-        });
+
+        const content =
+          getRecommendationContent(
+            weakestCategory.category,
+            weakestCategory.score,
+          );
+
+        return {
+          id: `${listing.id}-${weakestCategory.category.toLowerCase()}`,
+          listingId: String(listing.id),
+          listingTitle:
+            listing.title?.trim() ||
+            "Untitled listing",
+          listingScore:
+            analysis.scores.overall,
+          categoryScore:
+            weakestCategory.score,
+          type: recommendationType,
+          title: content.title,
+          reason: content.reason,
+          action: content.action,
+          priority:
+            getRecommendationPriority(
+              weakestCategory.score,
+            ),
+        };
+      })
+      .filter(
+        (recommendation) =>
+          recommendation.categoryScore < 80,
+      )
+      .sort((first, second) => {
+        if (
+          first.categoryScore !==
+          second.categoryScore
+        ) {
+          return (
+            first.categoryScore -
+            second.categoryScore
+          );
+        }
+
+        return (
+          first.listingScore -
+          second.listingScore
+        );
+      });
 
     return {
       all: generatedRecommendations,
@@ -351,7 +293,8 @@ export default function AIRecommendations({
           </CardTitle>
 
           <CardDescription>
-            Recommendations could not be calculated.
+            Recommendations could not be
+            calculated.
           </CardDescription>
         </CardHeader>
 
