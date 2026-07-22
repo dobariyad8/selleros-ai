@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
+import { serverEnv } from "@/lib/env/server";
 
 export async function GET() {
-  const apiKey = process.env.ETSY_API_KEY;
-  const sharedSecret = process.env.ETSY_SHARED_SECRET;
+  const apiKey = serverEnv.etsyApiKey;
+  const sharedSecret = serverEnv.etsySharedSecret;
 
   if (!apiKey || !sharedSecret) {
     return NextResponse.json(

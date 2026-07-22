@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { serverEnv } from "@/lib/env/server";
 
 type EtsyShop = {
   shop_id: number;
@@ -14,8 +15,8 @@ type EtsyShop = {
 };
 
 export async function GET(request: NextRequest) {
-  const apiKey = process.env.ETSY_API_KEY;
-  const sharedSecret = process.env.ETSY_SHARED_SECRET;
+  const apiKey = serverEnv.etsyApiKey;
+  const sharedSecret = serverEnv.etsySharedSecret;
   const accessToken = request.cookies.get("etsy_access_token")?.value;
 
   if (!apiKey || !sharedSecret) {
