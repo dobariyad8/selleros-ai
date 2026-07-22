@@ -21,12 +21,12 @@ type DashboardErrorProps = {
   error: Error & {
     digest?: string;
   };
-  reset: () => void;
+  unstable_retry: () => void;
 };
 
 export default function DashboardError({
   error,
-  reset,
+  unstable_retry,
 }: DashboardErrorProps) {
   useEffect(() => {
     console.error(
@@ -57,7 +57,7 @@ export default function DashboardError({
           <div className="flex flex-col justify-center gap-3 sm:flex-row">
             <Button
               type="button"
-              onClick={reset}
+              onClick={unstable_retry}
             >
               <RefreshCw className="size-4" />
               Try Again
