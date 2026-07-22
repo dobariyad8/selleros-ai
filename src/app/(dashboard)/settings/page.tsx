@@ -118,6 +118,21 @@ export default function SettingsPage() {
               </div>
             )}
 
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button
+                nativeButton={false}
+                render={
+                  <a href="/api/auth/etsy/login" />
+                }
+              >
+                <Store className="size-4" />
+            
+                {shop
+                  ? "Reconnect Etsy Shop"
+                  : "Connect Etsy Shop"}
+              </Button>
+            </div>
+
             {error && (
               <div
                 role="alert"
