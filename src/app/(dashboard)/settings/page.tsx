@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CircleCheckBig,
   RefreshCw,
   Settings,
   Store,
@@ -19,7 +20,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+import { useSearchParams } from "next/navigation";
+
 export default function SettingsPage() {
+    const searchParams = useSearchParams();
+    const etsyStatus = searchParams.get("etsy");
   const {
     shop,
     totalAvailable,
@@ -46,6 +51,46 @@ export default function SettingsPage() {
           SellerOS.
         </p>
       </div>
+
+      {etsyStatus === "connected" && (
+          <div
+            role="status"
+            className="mt-6 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800"
+          >
+            <CircleCheckBig className="mt-0.5 size-5 shrink-0" />
+            
+            <div>
+              <p className="font-semibold">
+                Etsy shop connected
+              </p>
+            
+              <p className="mt-1 text-sm">
+                SellerOS can now access your connected Etsy
+                shop and listing data.
+              </p>
+            </div>
+          </div>
+        )}
+        
+        {etsyStatus === "disconnected" && (
+          <div
+            role="status"
+            className="mt-6 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800"
+          >
+            <Unplug className="mt-0.5 size-5 shrink-0" />
+        
+            <div>
+              <p className="font-semibold">
+                Etsy shop disconnected
+              </p>
+        
+              <p className="mt-1 text-sm">
+                The Etsy access and refresh tokens were removed
+                from this browser.
+              </p>
+            </div>
+          </div>
+        )}
 
       <div className="mt-6 space-y-6">
         <Card>
