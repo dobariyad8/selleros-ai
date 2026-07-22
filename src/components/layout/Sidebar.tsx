@@ -3,87 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BarChart3,
-  FileSearch,
-  ImageIcon,
-  LayoutDashboard,
-  ListChecks,
   Settings,
   Sparkles,
-  Tags,
-  Trophy,
 } from "lucide-react";
 
-const navigationItems = [
-  {
-    name: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    name: "Listings",
-    href: "/listings",
-    icon: ListChecks,
-  },
-  {
-    name: "AI Auditor",
-    href: "/ai-auditor",
-    icon: FileSearch,
-  },
-  {
-    name: "Recommendations",
-    href: "/recommendations",
-    icon: Sparkles,
-  },
-  {
-    name: "Keywords",
-    href: "/keywords",
-    icon: Tags,
-  },
-  {
-    name: "Top Performers",
-    href: "/top-performers",
-    icon: Trophy,
-  },
-  {
-    name: "Analytics",
-    href: "/analytics",
-    icon: BarChart3,
-  },
-  {
-    name: "Images",
-    href: "/images",
-    icon: ImageIcon,
-  },
-];
-
-function isRouteActive(
-  pathname: string,
-  href: string,
-) {
-  if (href === "/dashboard") {
-    return pathname === "/dashboard";
-  }
-
-  if (href === "/listings") {
-    return (
-      pathname === "/listings" ||
-      pathname.startsWith("/listings/")
-    );
-  }
-
-  if (href === "/ai-auditor") {
-    return (
-      pathname === "/ai-auditor" ||
-      pathname.startsWith("/audit/")
-    );
-  }
-
-  return (
-    pathname === href ||
-    pathname.startsWith(`${href}/`)
-  );
-}
+import {
+  isNavigationRouteActive,
+  navigationItems,
+} from "@/components/layout/navigation";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -119,10 +46,11 @@ export default function Sidebar() {
           {navigationItems.map((item) => {
             const Icon = item.icon;
 
-            const isActive = isRouteActive(
-              pathname,
-              item.href,
-            );
+            const isActive =
+              isNavigationRouteActive(
+                pathname,
+                item.href,
+              );
 
             return (
               <Link
@@ -152,8 +80,9 @@ export default function Sidebar() {
           title="Settings page coming soon"
           className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground/60"
         >
-          <Settings className="size-4" />
-          Settings
+          <Settings className="size-4 shrink-0" />
+
+          <span>Settings</span>
 
           <span className="ml-auto text-[10px]">
             Soon
