@@ -51,17 +51,17 @@ const navigationItems = [
     href: "/keywords",
     icon: Tags,
   },
+  {
+    name: "Top Performers",
+    href: "/top-performers",
+    icon: Trophy,
+  },
 ];
 
 const upcomingItems = [
   {
     name: "Analytics",
     icon: BarChart3,
-    note: "Coming soon",
-  },
-  {
-    name: "Top Performers",
-    icon: Trophy,
     note: "Coming soon",
   },
   {
