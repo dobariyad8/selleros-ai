@@ -104,14 +104,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const response = NextResponse.json({
-      success: true,
-      message: "Etsy shop connected successfully.",
-      expiresIn: tokenData.expires_in,
-      tokenType: tokenData.token_type,
-      hasAccessToken: true,
-      hasRefreshToken: Boolean(tokenData.refresh_token),
-    });
+    const response = NextResponse.redirect(
+      new URL(
+        "/settings?etsy=connected",
+        request.url,
+      ),
+    );
 
     response.cookies.set("etsy_access_token", tokenData.access_token, {
       httpOnly: true,
