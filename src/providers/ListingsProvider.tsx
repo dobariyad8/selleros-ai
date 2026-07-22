@@ -42,11 +42,6 @@ export type ListingsContextValue = {
   isLoading: boolean;
   isRefreshing: boolean;
   error: string | null;
-
-  setListings: (
-    listings: SellerOsListing[],
-  ) => void;
-
   refreshListings: () => Promise<void>;
 };
 
@@ -93,8 +88,8 @@ export function ListingsProvider({
     );
 
   const loadListings = useCallback(
-    async (isManualRefresh = false) => {
-      if (isManualRefresh) {
+    async (manualRefresh = false) => {
+      if (manualRefresh) {
         setIsRefreshing(true);
       } else {
         setIsLoading(true);
@@ -163,19 +158,6 @@ export function ListingsProvider({
     void loadListings();
   }, [loadListings]);
 
-  /*
-   * Used when CSV listings are imported.
-   */
-  const setListings = useCallback(
-    (listings: SellerOsListing[]) => {
-      setListingState(listings);
-      setCount(listings.length);
-      setTotalAvailable(listings.length);
-      setError(null);
-    },
-    [],
-  );
-
   const value =
     useMemo<ListingsContextValue>(
       () => ({
@@ -187,7 +169,6 @@ export function ListingsProvider({
         isLoading,
         isRefreshing,
         error,
-        setListings,
         refreshListings,
       }),
       [
@@ -199,7 +180,6 @@ export function ListingsProvider({
         isLoading,
         isRefreshing,
         error,
-        setListings,
         refreshListings,
       ],
     );
