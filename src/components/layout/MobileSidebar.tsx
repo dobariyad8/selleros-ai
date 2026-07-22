@@ -36,6 +36,11 @@ const navigationItems = [
     href: "/listings",
     icon: ListChecks,
   },
+  {
+    name: "Recommendations",
+    href: "/recommendations",
+    icon: Sparkles,
+  },
 ];
 
 const upcomingItems = [
@@ -43,11 +48,6 @@ const upcomingItems = [
     name: "AI Auditor",
     icon: FileSearch,
     note: "Open from a listing",
-  },
-  {
-    name: "Recommendations",
-    icon: Sparkles,
-    note: "Coming soon",
   },
   {
     name: "Analytics",
@@ -87,7 +87,10 @@ function isRouteActive(
     );
   }
 
-  return pathname === href;
+  return (
+    pathname === href ||
+    pathname.startsWith(`${href}/`)
+  );
 }
 
 export default function MobileSidebar() {
@@ -165,9 +168,7 @@ export default function MobileSidebar() {
                   href={item.href}
                   onClick={closeSidebar}
                   aria-current={
-                    isActive
-                      ? "page"
-                      : undefined
+                    isActive ? "page" : undefined
                   }
                   className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                     isActive
@@ -176,7 +177,6 @@ export default function MobileSidebar() {
                   }`}
                 >
                   <Icon className="size-4 shrink-0" />
-
                   <span>{item.name}</span>
                 </Link>
               );
@@ -222,7 +222,6 @@ export default function MobileSidebar() {
             className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground/60"
           >
             <Settings className="size-4 shrink-0" />
-
             <span>Settings</span>
 
             <span className="ml-auto text-[10px]">

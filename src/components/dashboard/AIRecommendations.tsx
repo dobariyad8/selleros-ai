@@ -43,6 +43,10 @@ type ListingRecommendation =
     listingScore: number;
   };
 
+type AIRecommendationsProps = {
+  showAll?: boolean;
+};
+
 function getPriorityVariant(
   priority: RecommendationPriority,
 ) {
@@ -159,7 +163,9 @@ function getRecommendationContent(
   };
 }
 
-export default function AIRecommendations() {
+export default function AIRecommendations({
+  showAll = false,
+  }: AIRecommendationsProps) {
   const {
     analyzedListings,
     isLoading,
@@ -239,10 +245,11 @@ export default function AIRecommendations() {
 
     return {
       all: generatedRecommendations,
-      displayed:
-        generatedRecommendations.slice(0, 3),
+      displayed: showAll
+        ? generatedRecommendations
+        : generatedRecommendations.slice(0, 3),
     };
-  }, [analyzedListings]);
+  }, [analyzedListings, showAll]);
 
   function openWorkspace(
     recommendation: WorkspaceRecommendation,
@@ -437,14 +444,17 @@ export default function AIRecommendations() {
             </div>
           )}
 
-          {recommendationData.all.length > 3 && (
+          {!showAll &&
+          recommendationData.all.length > 3 && (
             <Button
               variant="outline"
               className="mt-4 w-full"
               nativeButton={false}
-              render={<Link href="/listings" />}
+              render={
+                <Link href="/recommendations" />
+              }
             >
-              View all listings
+              View all recommendations
               <ArrowRight className="size-4" />
             </Button>
           )}

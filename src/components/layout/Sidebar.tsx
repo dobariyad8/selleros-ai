@@ -25,6 +25,11 @@ const navigationItems = [
     href: "/listings",
     icon: ListChecks,
   },
+  {
+    name: "Recommendations",
+    href: "/recommendations",
+    icon: Sparkles,
+  },
 ];
 
 const upcomingItems = [
@@ -32,11 +37,6 @@ const upcomingItems = [
     name: "AI Auditor",
     icon: FileSearch,
     note: "Open from a listing",
-  },
-  {
-    name: "Recommendations",
-    icon: Sparkles,
-    note: "Coming soon",
   },
   {
     name: "Analytics",
@@ -76,7 +76,10 @@ function isRouteActive(
     );
   }
 
-  return pathname === href;
+  return (
+    pathname === href ||
+    pathname.startsWith(`${href}/`)
+  );
 }
 
 export default function Sidebar() {
