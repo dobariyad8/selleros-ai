@@ -61,13 +61,10 @@ const navigationItems = [
     href: "/analytics",
     icon: BarChart3,
   },
-];
-
-const upcomingItems = [
   {
     name: "Images",
+    href: "/images",
     icon: ImageIcon,
-    note: "Coming soon",
   },
 ];
 
@@ -186,37 +183,6 @@ export default function MobileSidebar() {
                 </Link>
               );
             })}
-          </div>
-
-          <div className="mt-6">
-            <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Growth Tools
-            </p>
-
-            <div className="space-y-1">
-              {upcomingItems.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <div
-                    key={item.name}
-                    aria-disabled="true"
-                    title={item.note}
-                    className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground/60"
-                  >
-                    <Icon className="size-4 shrink-0" />
-
-                    <span className="min-w-0 flex-1">
-                      {item.name}
-                    </span>
-
-                    <span className="max-w-20 truncate text-[10px]">
-                      {item.note}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
           </div>
         </nav>
 
