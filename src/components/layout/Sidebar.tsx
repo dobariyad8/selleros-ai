@@ -35,6 +35,11 @@ const navigationItems = [
     href: "/recommendations",
     icon: Sparkles,
   },
+  {
+    name: "Keywords",
+    href: "/keywords",
+    icon: Tags,
+  },
 ];
 
 const upcomingItems = [
@@ -46,11 +51,6 @@ const upcomingItems = [
   {
     name: "Top Performers",
     icon: Trophy,
-    note: "Coming soon",
-  },
-  {
-    name: "Keywords",
-    icon: Tags,
     note: "Coming soon",
   },
   {
