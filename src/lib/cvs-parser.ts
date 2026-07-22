@@ -1,6 +1,6 @@
 import Papa from "papaparse";
 
-import type { EtsyListing } from "./etsy-types";
+import type { SellerOsListing } from "@/lib/etsy/types";
 
 type EtsyCSVRow = Record<string, string | undefined>;
 
@@ -14,81 +14,159 @@ function splitCSVValue(value?: string) {
 }
 
 function getImageUrls(row: EtsyCSVRow) {
-  return Array.from({ length: 10 }, (_, index) => {
-    return row[`IMAGE${index + 1}`]?.trim();
-  }).filter((url): url is string => Boolean(url));
+  return Array.from(
+    { length: 10 },
+    (_, index) =>
+      row[`IMAGE${index + 1}`]?.trim(),
+  ).filter(
+    (url): url is string => Boolean(url),
+  );
+}
+
+function getFirstValue(
+  row: EtsyCSVRow,
+  keys: string[],
+) {
+  for (const key of keys) {
+    const value = row[key]?.trim();
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function parseNumber(
+  value: string | undefined,
+  fallback = 0,
+) {
+  const parsedValue = Number(value);
+
+  return Number.isFinite(parsedValue)
+    ? parsedValue
+    : fallback;
 }
 
 export function parseEtsyCSV(
-  file: File
-): Promise<EtsyListing[]> {
+  file: File,
+): Promise<SellerOsListing[]> {
   return new Promise((resolve, reject) => {
     Papa.parse<EtsyCSVRow>(file, {
       header: true,
       skipEmptyLines: true,
-      transformHeader: (header) => header.trim().toUpperCase(),
+
+      transformHeader: (header) =>
+        header.trim().toUpperCase(),
 
       complete(results) {
         try {
-          const listings: EtsyListing[] = results.data.map(
-            (row, index) => {
-              const title = row["TITLE"]?.trim() ?? "";
-              const price = Number(row["PRICE"] ?? 0);
-              const quantity = Number(row["QUANTITY"] ?? 0);
+          const listings: SellerOsListing[] =
+            results.data.map((row, index) => {
+              const importedListingId =
+                parseNumber(
+                  getFirstValue(row, [
+                    "LISTING_ID",
+                    "LISTING ID",
+                    "LISTINGID",
+                  ]),
+                  -(index + 1),
+                );
+
+              const sku =
+                row["SKU"]?.trim();
+
+              const title =
+                row["TITLE"]?.trim() ?? "";
+
+              const price = parseNumber(
+                row["PRICE"],
+              );
+
+              const quantity = parseNumber(
+                row["QUANTITY"],
+              );
+
+              const taxonomyIdValue =
+                getFirstValue(row, [
+                  "TAXONOMY_ID",
+                  "TAXONOMY ID",
+                  "TAXONOMYID",
+                ]);
+
+              const taxonomyId =
+                taxonomyIdValue !== undefined
+                  ? parseNumber(
+                      taxonomyIdValue,
+                    )
+                  : null;
+
+              const listingUrl =
+                getFirstValue(row, [
+                  "LISTING_URL",
+                  "LISTING URL",
+                  "URL",
+                ]) ?? null;
 
               return {
                 id:
-                  row["SKU"]?.trim() ||
-                  `imported-listing-${index + 1}`,
+                  sku ||
+                  `csv-import-${Math.abs(
+                    importedListingId,
+                  )}-${index + 1}`,
+
+                listingId: importedListingId,
 
                 title,
 
                 description:
-                  row["DESCRIPTION"]?.trim() ?? "",
+                  row["DESCRIPTION"]?.trim() ??
+                  "",
 
-                price:
-                  Number.isFinite(price) ? price : 0,
+                price,
 
-                quantity:
-                  Number.isFinite(quantity) ? quantity : 0,
+                currencyCode:
+                  getFirstValue(row, [
+                    "CURRENCY_CODE",
+                    "CURRENCY CODE",
+                    "CURRENCY",
+                  ]) ?? "USD",
 
-                category: "Uncategorized",
+                quantity,
 
-                materials: splitCSVValue(
-                  row["MATERIALS"]
+                tags: splitCSVValue(
+                  row["TAGS"],
                 ),
 
-                tags: splitCSVValue(row["TAGS"]),
+                materials: splitCSVValue(
+                  row["MATERIALS"],
+                ),
 
-                imageUrls: getImageUrls(row),
+                imageUrls:
+                  getImageUrls(row),
 
-                views: 0,
+                status:
+                  row["STATUS"]?.trim() ||
+                  row["STATE"]?.trim() ||
+                  "active",
 
-                favorites: 0,
+                taxonomyId,
 
-                orders: 0,
+                listingUrl,
 
-                revenue: 0,
-
-                conversionRate: 0,
-
-                status: "Active",
-
-                listingUrl: undefined,
-
-                createdAt: undefined,
-
-                updatedAt: undefined,
+                source: "csv-import",
               };
-            }
-          );
+            });
 
           resolve(listings);
         } catch (error) {
           reject(
             error instanceof Error
               ? error
-              : new Error("Failed to parse Etsy CSV")
+              : new Error(
+                  "Failed to parse Etsy CSV.",
+                ),
           );
         }
       },
