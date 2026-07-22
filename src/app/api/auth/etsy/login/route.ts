@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
+import { serverEnv } from "@/lib/env/server";
 
 function base64UrlEncode(value: Buffer): string {
   return value
@@ -10,8 +11,8 @@ function base64UrlEncode(value: Buffer): string {
 }
 
 export async function GET() {
-  const clientId = process.env.ETSY_API_KEY;
-  const redirectUri = process.env.ETSY_REDIRECT_URI;
+  const clientId = serverEnv.etsyApiKey;
+  const redirectUri = serverEnv.etsyRedirectUri;
 
   if (!clientId || !redirectUri) {
     return NextResponse.json(
@@ -51,7 +52,7 @@ export async function GET() {
   response.cookies.set("etsy_oauth_state", state, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: serverEnv.isProduction,
     maxAge: 10 * 60,
     path: "/",
   });
@@ -59,7 +60,7 @@ export async function GET() {
   response.cookies.set("etsy_code_verifier", codeVerifier, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: serverEnv.isProduction,
     maxAge: 10 * 60,
     path: "/",
   });

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { serverEnv } from "@/lib/env/server";
 
 type EtsyTokenResponse = {
   access_token?: string;
@@ -10,8 +11,8 @@ type EtsyTokenResponse = {
 };
 
 export async function GET(request: NextRequest) {
-  const clientId = process.env.ETSY_API_KEY;
-  const redirectUri = process.env.ETSY_REDIRECT_URI;
+  const clientId = serverEnv.etsyApiKey;
+  const redirectUri = serverEnv.etsyRedirectUri;
 
   const authorizationCode = request.nextUrl.searchParams.get("code");
   const returnedState = request.nextUrl.searchParams.get("state");
@@ -115,7 +116,7 @@ export async function GET(request: NextRequest) {
     response.cookies.set("etsy_access_token", tokenData.access_token, {
       httpOnly: true,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure: serverEnv.isProduction,
       maxAge: tokenData.expires_in ?? 3600,
       path: "/",
     });
@@ -124,7 +125,7 @@ export async function GET(request: NextRequest) {
       response.cookies.set("etsy_refresh_token", tokenData.refresh_token, {
         httpOnly: true,
         sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
+        secure: serverEnv.isProduction,
         maxAge: 60 * 60 * 24 * 90,
         path: "/",
       });
