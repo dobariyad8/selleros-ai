@@ -57,7 +57,7 @@ export type SellerOsListing = {
   status: string;
   taxonomyId: number | null;
   listingUrl: string | null;
-  source: "etsy-api" | "csv-import";
+  source: "etsy-api";
 };
 
 export type EtsyShopSummary = {
