@@ -56,14 +56,14 @@ const navigationItems = [
     href: "/top-performers",
     icon: Trophy,
   },
+  {
+    name: "Analytics",
+    href: "/analytics",
+    icon: BarChart3,
+  },
 ];
 
 const upcomingItems = [
-  {
-    name: "Analytics",
-    icon: BarChart3,
-    note: "Coming soon",
-  },
   {
     name: "Images",
     icon: ImageIcon,
