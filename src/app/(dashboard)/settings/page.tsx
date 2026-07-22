@@ -4,6 +4,7 @@ import {
   RefreshCw,
   Settings,
   Store,
+  Unplug,
 } from "lucide-react";
 
 import { useListings } from "@/hooks/useListings";
@@ -131,6 +132,21 @@ export default function SettingsPage() {
                   ? "Reconnect Etsy Shop"
                   : "Connect Etsy Shop"}
               </Button>
+                
+              {shop && (
+                <form
+                  action="/api/auth/etsy/disconnect"
+                  method="post"
+                >
+                  <Button
+                    type="submit"
+                    variant="destructive"
+                  >
+                    <Unplug className="size-4" />
+                    Disconnect Etsy Shop
+                  </Button>
+                </form>
+              )}
             </div>
 
             {error && (
