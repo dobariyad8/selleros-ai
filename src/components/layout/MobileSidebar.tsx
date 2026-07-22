@@ -37,6 +37,11 @@ const navigationItems = [
     icon: ListChecks,
   },
   {
+    name: "AI Auditor",
+    href: "/ai-auditor",
+    icon: FileSearch,
+  },
+  {
     name: "Recommendations",
     href: "/recommendations",
     icon: Sparkles,
@@ -44,11 +49,6 @@ const navigationItems = [
 ];
 
 const upcomingItems = [
-  {
-    name: "AI Auditor",
-    icon: FileSearch,
-    note: "Open from a listing",
-  },
   {
     name: "Analytics",
     icon: BarChart3,
@@ -82,7 +82,13 @@ function isRouteActive(
   if (href === "/listings") {
     return (
       pathname === "/listings" ||
-      pathname.startsWith("/listings/") ||
+      pathname.startsWith("/listings/")
+    );
+  }
+
+  if (href === "/ai-auditor") {
+    return (
+      pathname === "/ai-auditor" ||
       pathname.startsWith("/audit/")
     );
   }
@@ -96,8 +102,7 @@ function isRouteActive(
 export default function MobileSidebar() {
   const pathname = usePathname();
 
-  const [isOpen, setIsOpen] =
-    useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   function closeSidebar() {
     setIsOpen(false);
