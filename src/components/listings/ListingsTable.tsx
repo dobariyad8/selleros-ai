@@ -29,7 +29,6 @@ function getStatusClasses(status: string) {
 export default function ListingsTable() {
   const {
     listings,
-    count,
     isLoading,
     isRefreshing,
     error,

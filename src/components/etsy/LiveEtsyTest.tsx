@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { fetchLiveEtsyListings } from "@/lib/etsy/fetch-live-listings";
 import type { LiveEtsyListing } from "@/lib/etsy/live-listing-types";
 import { Button } from "@/components/ui/button";
@@ -67,9 +68,11 @@ export default function LiveEtsyTest() {
 
           <div className="flex items-center gap-3">
             {listings[0]?.imageUrls[0] && (
-              <img
+              <Image
                 src={listings[0].imageUrls[0]}
                 alt={listings[0].title}
+                width={64}
+                height={64}
                 className="h-16 w-16 rounded-md object-cover"
               />
             )}

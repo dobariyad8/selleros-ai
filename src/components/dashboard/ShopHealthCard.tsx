@@ -1,9 +1,13 @@
+"use client";
+
+import { useMemo } from "react";
 import {
   CircleAlert,
   CircleCheck,
   HeartPulse,
-  TrendingUp,
 } from "lucide-react";
+
+import { useListings } from "@/hooks/useListings";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,15 +18,28 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+
+import { calculateDescriptionScore } from "@/lib/scoring/descriptionScore";
+import { calculateImageScore } from "@/lib/scoring/imageScore";
+import { calculateOverallScore } from "@/lib/scoring/overallScore";
+import { calculatePricingScore } from "@/lib/scoring/pricingScore";
+import { calculateTagScore } from "@/lib/scoring/tagScore";
+import { calculateTitleScore } from "@/lib/scoring/titleScore";
 
 type HealthScore = {
   name: string;
   score: number;
 };
 
+/*
+ * These props are temporarily retained so the current
+ * dashboard page continues compiling. The component now
+ * calculates its values from real connected listings.
+ */
 type ShopHealthCardProps = {
-  overallScore: number;
-  scores: HealthScore[];
+  overallScore?: number;
+  scores?: HealthScore[];
 };
 
 function getScoreLabel(score: number) {
@@ -49,7 +66,11 @@ function getBadgeVariant(score: number) {
   return "destructive" as const;
 }
 
-function ScoreStatusIcon({ score }: { score: number }) {
+function ScoreStatusIcon({
+  score,
+}: {
+  score: number;
+}) {
   if (score >= 85) {
     return <CircleCheck className="size-4" />;
   }
@@ -57,10 +78,221 @@ function ScoreStatusIcon({ score }: { score: number }) {
   return <CircleAlert className="size-4" />;
 }
 
-export default function ShopHealthCard({
-  overallScore,
-  scores,
-}: ShopHealthCardProps) {
+function calculateAverage(
+  values: number[],
+) {
+  if (values.length === 0) {
+    return 0;
+  }
+
+  const total = values.reduce(
+    (sum, value) => sum + value,
+    0,
+  );
+
+  return Math.round(total / values.length);
+}
+
+export default function ShopHealthCard(
+  _props: ShopHealthCardProps,
+) {
+  const {
+    listings,
+    isLoading,
+    error,
+  } = useListings();
+
+  const healthData = useMemo(() => {
+    const listingResults = listings.map(
+      (listing) => {
+        const titleResult =
+          calculateTitleScore(listing.title);
+
+        const tagResult = calculateTagScore(
+          listing.tags ?? [],
+          listing.title,
+        );
+
+        const descriptionResult =
+          calculateDescriptionScore(
+            listing.description ?? "",
+            listing.title,
+          );
+
+        const imageResult =
+          calculateImageScore(
+            listing.imageUrls ?? [],
+          );
+
+        const pricingResult =
+          calculatePricingScore(
+            Number(listing.price ?? 0),
+          );
+
+        const overallResult =
+          calculateOverallScore({
+            title: titleResult.score,
+            tags: tagResult.score,
+            description:
+              descriptionResult.score,
+            images: imageResult.score,
+            pricing: pricingResult.score,
+          });
+
+        return {
+          title: titleResult.score,
+          tags: tagResult.score,
+          description:
+            descriptionResult.score,
+          images: imageResult.score,
+          pricing: pricingResult.score,
+          overall: overallResult.score,
+        };
+      },
+    );
+
+    const scores: HealthScore[] = [
+      {
+        name: "Titles",
+        score: calculateAverage(
+          listingResults.map(
+            (result) => result.title,
+          ),
+        ),
+      },
+      {
+        name: "Tags",
+        score: calculateAverage(
+          listingResults.map(
+            (result) => result.tags,
+          ),
+        ),
+      },
+      {
+        name: "Descriptions",
+        score: calculateAverage(
+          listingResults.map(
+            (result) => result.description,
+          ),
+        ),
+      },
+      {
+        name: "Images",
+        score: calculateAverage(
+          listingResults.map(
+            (result) => result.images,
+          ),
+        ),
+      },
+      {
+        name: "Pricing",
+        score: calculateAverage(
+          listingResults.map(
+            (result) => result.pricing,
+          ),
+        ),
+      },
+    ];
+
+    return {
+      overallScore: calculateAverage(
+        listingResults.map(
+          (result) => result.overall,
+        ),
+      ),
+      scores,
+      analyzedCount: listingResults.length,
+    };
+  }, [listings]);
+
+  if (isLoading) {
+    return (
+      <Card className="h-full">
+        <CardHeader>
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </CardHeader>
+
+        <CardContent className="space-y-5">
+          <Skeleton className="h-28 rounded-xl" />
+
+          {Array.from({ length: 5 }).map(
+            (_, index) => (
+              <div
+                key={index}
+                className="space-y-2"
+              >
+                <div className="flex justify-between">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+
+                <Skeleton className="h-2 w-full" />
+              </div>
+            ),
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="h-full border-red-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-red-700">
+            <HeartPulse className="size-5" />
+            Shop Health Score
+          </CardTitle>
+
+          <CardDescription>
+            The shop-health data could not be
+            calculated.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {error}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (healthData.analyzedCount === 0) {
+    return (
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <HeartPulse className="size-5" />
+            Shop Health Score
+          </CardTitle>
+
+          <CardDescription>
+            A summary of your Etsy listing
+            quality.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <div className="rounded-xl border border-dashed p-8 text-center">
+            <CircleAlert className="mx-auto size-8 text-muted-foreground" />
+
+            <p className="mt-3 font-medium">
+              No listings available
+            </p>
+
+            <p className="mt-1 text-sm text-muted-foreground">
+              Connect or load Etsy listings to
+              calculate your shop health.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="h-full transition-shadow hover:shadow-md">
       <CardHeader>
@@ -72,46 +304,62 @@ export default function ShopHealthCard({
             </CardTitle>
 
             <CardDescription className="mt-1">
-              A summary of your Etsy listing quality.
+              Average quality across your connected
+              Etsy listings.
             </CardDescription>
           </div>
 
-          <Badge variant="outline" className="gap-1">
-            <TrendingUp className="size-3" />
-            Updated today
+          <Badge
+            variant="outline"
+            className="shrink-0"
+          >
+            {healthData.analyzedCount}{" "}
+            {healthData.analyzedCount === 1
+              ? "listing"
+              : "listings"}{" "}
+            analyzed
           </Badge>
         </div>
       </CardHeader>
 
       <CardContent>
-        <div className="mb-6 flex items-end justify-between rounded-xl border bg-muted/30 p-4">
+        <div className="mb-6 flex items-end justify-between gap-4 rounded-xl border bg-muted/30 p-4">
           <div>
             <p className="text-4xl font-bold tracking-tight">
-              {overallScore}
+              {healthData.overallScore}
+
               <span className="text-lg font-medium text-muted-foreground">
                 /100
               </span>
             </p>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              Overall shop health
+              Average overall shop health
             </p>
           </div>
 
-          <Badge variant={getBadgeVariant(overallScore)}>
-            {getScoreLabel(overallScore)}
+          <Badge
+            variant={getBadgeVariant(
+              healthData.overallScore,
+            )}
+          >
+            {getScoreLabel(
+              healthData.overallScore,
+            )}
           </Badge>
         </div>
 
         <div className="space-y-5">
-          {scores.map((item) => (
+          {healthData.scores.map((item) => (
             <div key={item.name}>
-              <div className="mb-2 flex items-center justify-between gap-4">
+              <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-medium">{item.name}</p>
+                  <p className="text-sm font-medium">
+                    {item.name}
+                  </p>
 
                   <p className="text-xs text-muted-foreground">
-                    Listing quality score
+                    Average listing-quality score
                   </p>
                 </div>
 
@@ -121,10 +369,15 @@ export default function ShopHealthCard({
                   </span>
 
                   <Badge
-                    variant={getBadgeVariant(item.score)}
+                    variant={getBadgeVariant(
+                      item.score,
+                    )}
                     className="gap-1"
                   >
-                    <ScoreStatusIcon score={item.score} />
+                    <ScoreStatusIcon
+                      score={item.score}
+                    />
+
                     {getScoreLabel(item.score)}
                   </Badge>
                 </div>
@@ -134,6 +387,12 @@ export default function ShopHealthCard({
             </div>
           ))}
         </div>
+
+        <p className="mt-6 text-xs text-muted-foreground">
+          Scores are SellerOS estimates based on
+          listing content and do not guarantee Etsy
+          traffic, rankings, or sales.
+        </p>
       </CardContent>
     </Card>
   );
