@@ -44,6 +44,23 @@ import {
 
 import MobileSidebar from "./MobileSidebar";
 
+function getShopInitials(shopName: string) {
+  const words = shopName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (words.length === 0) {
+    return "ES";
+  }
+
+  if (words.length === 1) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${words[0][0]}${words[1][0]}`.toUpperCase();
+}
+
 export default function Header() {
   const router = useRouter();
 
@@ -51,11 +68,20 @@ export default function Header() {
     useState(false);
 
   const {
-  analyzedListings,
-  shop,
-  searchQuery,
-  setSearchQuery,
-} = useListings();
+    analyzedListings,
+    shop,
+    searchQuery,
+    setSearchQuery,
+  } = useListings();
+
+  const shopName =
+    shop?.shopName?.trim() || "Etsy Shop";
+
+  const shopInitials = getShopInitials(shopName);
+
+  const accountStatus = shop
+    ? "Connected Etsy shop"
+    : "No shop connected";
 
   const notifications = useMemo(
     () =>
@@ -116,7 +142,7 @@ export default function Header() {
 
         <form
           onSubmit={handleDesktopSearchSubmit}
-          className="relative hidden min-w-0 w-full max-w-sm md:block"
+          className="relative hidden w-full min-w-0 max-w-sm md:block"
           role="search"
         >
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -127,9 +153,7 @@ export default function Header() {
             placeholder="Search listings..."
             value={searchQuery}
             onChange={(event) => {
-              setSearchQuery(
-                event.target.value,
-              );
+              setSearchQuery(event.target.value);
             }}
             className="w-full pl-9 pr-16"
           />
@@ -266,21 +290,17 @@ export default function Header() {
                       <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" />
 
                       <div className="min-w-0 flex-1">
-                        <p className="line-clamp-2 wrap-break-words">
+                        <p className="line-clamp-2 break-words">
                           {listing.title?.trim() ||
                             "Untitled listing"}
                         </p>
 
                         <p className="mt-1 text-xs font-normal text-muted-foreground">
                           Score:{" "}
-                          {
-                            analysis.scores
-                              .overall
-                          }
+                          {analysis.scores.overall}
                           /100 · Weakest:{" "}
                           {
-                            analysis
-                              .weakestCategory
+                            analysis.weakestCategory
                               .category
                           }
                         </p>
@@ -329,23 +349,24 @@ export default function Header() {
             render={
               <Button
                 variant="ghost"
+                aria-label="Open account menu"
                 className="h-10 min-w-0 gap-1 px-1.5 sm:gap-2 sm:px-2"
               />
             }
           >
             <Avatar className="size-8 shrink-0">
-              <AvatarFallback>
-                DD
+              <AvatarFallback className="text-xs font-semibold">
+                {shopInitials}
               </AvatarFallback>
             </Avatar>
 
-            <div className="hidden min-w-0 text-left md:block">
+            <div className="hidden min-w-0 max-w-44 text-left md:block">
               <p className="truncate text-sm font-medium leading-none">
-                Dhruv
+                {shopName}
               </p>
 
               <p className="mt-1 truncate text-xs text-muted-foreground">
-                {shop?.shopName ?? "Etsy shop"}
+                {accountStatus}
               </p>
             </div>
 
@@ -354,13 +375,33 @@ export default function Header() {
 
           <DropdownMenuContent
             align="end"
-            className="w-56 max-w-[calc(100vw-1rem)]"
+            className="w-64 max-w-[calc(100vw-1rem)]"
           >
             <DropdownMenuGroup>
               <DropdownMenuLabel>
-                My account
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar className="size-9 shrink-0">
+                    <AvatarFallback className="text-xs font-semibold">
+                      {shopInitials}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-foreground">
+                      {shopName}
+                    </p>
+
+                    <p className="mt-0.5 truncate text-xs font-normal text-muted-foreground">
+                      {accountStatus}
+                    </p>
+                  </div>
+                </div>
               </DropdownMenuLabel>
-                    
+            </DropdownMenuGroup>
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuGroup>
               <DropdownMenuItem
                 onClick={() => {
                   router.push("/shop-profile");
@@ -369,7 +410,7 @@ export default function Header() {
                 <Store className="size-4" />
                 Shop profile
               </DropdownMenuItem>
-              
+
               <DropdownMenuItem
                 onClick={() => {
                   router.push("/subscription");
@@ -378,7 +419,7 @@ export default function Header() {
                 <CreditCard className="size-4" />
                 Subscription
               </DropdownMenuItem>
-              
+
               <DropdownMenuItem
                 onClick={() => {
                   router.push("/settings");
@@ -388,9 +429,9 @@ export default function Header() {
                 Settings
               </DropdownMenuItem>
             </DropdownMenuGroup>
-              
+
             <DropdownMenuSeparator />
-              
+
             <DropdownMenuGroup>
               <DropdownMenuItem
                 variant="destructive"
@@ -398,7 +439,7 @@ export default function Header() {
                 onClick={disconnectEtsyShop}
               >
                 <Unplug className="size-4" />
-              
+
                 {shop
                   ? "Disconnect Etsy Shop"
                   : "No Etsy Shop Connected"}

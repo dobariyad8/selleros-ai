@@ -1,7 +1,9 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
+  ArrowRight,
   CircleCheckBig,
   RefreshCw,
   Settings,
@@ -11,6 +13,10 @@ import {
 
 import { useListings } from "@/hooks/useListings";
 
+import {
+  Avatar,
+  AvatarFallback,
+} from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +26,23 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
+function getShopInitials(shopName: string) {
+  const words = shopName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (words.length === 0) {
+    return "ES";
+  }
+
+  if (words.length === 1) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${words[0][0]}${words[1][0]}`.toUpperCase();
+}
 
 export default function SettingsPage() {
   const searchParams = useSearchParams();
@@ -33,11 +56,17 @@ export default function SettingsPage() {
     refreshListings,
   } = useListings();
 
+  const shopName =
+    shop?.shopName?.trim() || "Etsy Shop";
+
+  const shopInitials =
+    getShopInitials(shopName);
+
   return (
     <div className="mx-auto w-full min-w-0 max-w-4xl px-3 sm:px-4 lg:px-0">
       <div className="min-w-0">
         <p className="text-sm text-muted-foreground">
-          SellerOS
+          SellerOS Account
         </p>
 
         <h1 className="mt-2 flex min-w-0 items-start gap-2 wrap-break-words text-2xl font-bold tracking-tight sm:items-center sm:gap-3 sm:text-3xl">
@@ -49,9 +78,8 @@ export default function SettingsPage() {
         </h1>
 
         <p className="mt-2 max-w-2xl wrap-break-words text-sm leading-6 text-muted-foreground sm:text-base">
-          Review your connected Etsy shop and manually
-          refresh the listing data used throughout
-          SellerOS.
+          Manage your connected Etsy shop and refresh
+          the listing data used throughout SellerOS.
         </p>
       </div>
 
@@ -68,8 +96,8 @@ export default function SettingsPage() {
             </p>
 
             <p className="mt-1 wrap-break-words text-sm leading-6">
-              SellerOS can now access your connected Etsy
-              shop and listing data.
+              SellerOS can now access your connected
+              Etsy shop and listing data.
             </p>
           </div>
         </div>
@@ -88,8 +116,8 @@ export default function SettingsPage() {
             </p>
 
             <p className="mt-1 wrap-break-words text-sm leading-6">
-              The Etsy access and refresh tokens were removed
-              from this browser.
+              The Etsy access and refresh tokens were
+              removed from this browser.
             </p>
           </div>
         </div>
@@ -104,13 +132,13 @@ export default function SettingsPage() {
                   <Store className="size-5 shrink-0" />
 
                   <span className="wrap-break-words">
-                    Etsy Shop Connection
+                    Account Overview
                   </span>
                 </CardTitle>
 
                 <CardDescription className="mt-1 wrap-break-words">
-                  Shop information currently available
-                  to SellerOS.
+                  Identity and connection details for
+                  the Etsy shop used by SellerOS.
                 </CardDescription>
               </div>
 
@@ -120,54 +148,105 @@ export default function SettingsPage() {
                 }
                 className="w-fit shrink-0"
               >
-                {shop ? "Connected" : "Not connected"}
+                {shop ? (
+                  <>
+                    <CircleCheckBig className="size-3.5" />
+                    Connected
+                  </>
+                ) : (
+                  "Not connected"
+                )}
               </Badge>
             </div>
           </CardHeader>
 
           <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
             {shop ? (
-              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-                <div className="min-w-0 rounded-xl border bg-muted/30 p-3 sm:p-4">
-                  <p className="text-xs text-muted-foreground">
-                    Shop name
-                  </p>
+              <>
+                <div className="flex min-w-0 flex-col gap-4 rounded-xl border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Avatar className="size-12 shrink-0">
+                      <AvatarFallback className="font-semibold">
+                        {shopInitials}
+                      </AvatarFallback>
+                    </Avatar>
 
-                  <p className="mt-2 wrap-break-words font-semibold">
-                    {shop.shopName}
-                  </p>
+                    <div className="min-w-0">
+                      <p className="wrap-break-words font-semibold">
+                        {shopName}
+                      </p>
+
+                      <p className="mt-1 break-all text-sm text-muted-foreground">
+                        Etsy Shop ID: {shop.shopId}
+                      </p>
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    className="w-full shrink-0 sm:w-auto"
+                    nativeButton={false}
+                    render={
+                      <Link href="/shop-profile" />
+                    }
+                  >
+                    View Shop Profile
+                    <ArrowRight className="size-4" />
+                  </Button>
                 </div>
 
-                <div className="min-w-0 rounded-xl border bg-muted/30 p-3 sm:p-4">
-                  <p className="text-xs text-muted-foreground">
-                    Shop ID
-                  </p>
+                <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="min-w-0 rounded-xl border bg-muted/30 p-3 sm:p-4">
+                    <p className="text-xs text-muted-foreground">
+                      Shop name
+                    </p>
 
-                  <p className="mt-2 break-all font-semibold">
-                    {shop.shopId}
-                  </p>
+                    <p className="mt-2 wrap-break-words font-semibold">
+                      {shopName}
+                    </p>
+                  </div>
+
+                  <div className="min-w-0 rounded-xl border bg-muted/30 p-3 sm:p-4">
+                    <p className="text-xs text-muted-foreground">
+                      Shop ID
+                    </p>
+
+                    <p className="mt-2 break-all font-semibold">
+                      {shop.shopId}
+                    </p>
+                  </div>
+
+                  <div className="min-w-0 rounded-xl border bg-muted/30 p-3 sm:p-4">
+                    <p className="text-xs text-muted-foreground">
+                      Listings available
+                    </p>
+
+                    <p className="mt-2 wrap-break-words font-semibold">
+                      {totalAvailable}
+                    </p>
+                  </div>
                 </div>
-
-                <div className="min-w-0 rounded-xl border bg-muted/30 p-3 sm:p-4">
-                  <p className="text-xs text-muted-foreground">
-                    Listings available
-                  </p>
-
-                  <p className="mt-2 wrap-break-words font-semibold">
-                    {totalAvailable}
-                  </p>
-                </div>
-              </div>
+              </>
             ) : (
               <div className="min-w-0 rounded-xl border border-dashed p-5 sm:p-6">
-                <p className="wrap-break-words font-medium">
-                  No Etsy shop information available
-                </p>
+                <div className="flex min-w-0 items-start gap-3">
+                  <Avatar className="size-11 shrink-0">
+                    <AvatarFallback className="text-xs font-semibold">
+                      ES
+                    </AvatarFallback>
+                  </Avatar>
 
-                <p className="mt-1 wrap-break-words text-sm leading-6 text-muted-foreground">
-                  SellerOS could not find a connected
-                  Etsy shop in the current session.
-                </p>
+                  <div className="min-w-0">
+                    <p className="wrap-break-words font-medium">
+                      No Etsy shop connected
+                    </p>
+
+                    <p className="mt-1 wrap-break-words text-sm leading-6 text-muted-foreground">
+                      Connect an Etsy shop to load your
+                      account identity and listing data.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -234,7 +313,7 @@ export default function SettingsPage() {
               onClick={() => {
                 void refreshListings();
               }}
-              disabled={isRefreshing}
+              disabled={isRefreshing || !shop}
             >
               <RefreshCw
                 className={`size-4 shrink-0 ${
@@ -250,9 +329,9 @@ export default function SettingsPage() {
             </Button>
 
             <p className="mt-3 wrap-break-words text-xs leading-5 text-muted-foreground">
-              Refreshing replaces the current listing
-              collection with the latest data returned
-              by the Etsy connection.
+              {shop
+                ? "Refreshing replaces the current listing collection with the latest data returned by the Etsy connection."
+                : "Connect an Etsy shop before refreshing listing data."}
             </p>
           </CardContent>
         </Card>
