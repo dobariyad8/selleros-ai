@@ -10,6 +10,10 @@ import {
 
 import { useListings } from "@/hooks/useListings";
 
+import {
+  Avatar,
+  AvatarFallback,
+} from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +24,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+
+function getShopInitials(shopName: string) {
+  const words = shopName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (words.length === 0) {
+    return "ES";
+  }
+
+  if (words.length === 1) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${words[0][0]}${words[1][0]}`.toUpperCase();
+}
 
 export default function ShopProfilePage() {
   const {
@@ -35,9 +56,21 @@ export default function ShopProfilePage() {
       listing.status.toLowerCase() === "active",
   ).length;
 
-  const listingsWithUrls = listings.filter(
-    (listing) => Boolean(listing.listingUrl),
-  );
+  const inactiveListings = listings.filter(
+    (listing) =>
+      listing.status.toLowerCase() !== "active",
+  ).length;
+
+  const listingsWithImages = listings.filter(
+    (listing) =>
+      (listing.imageUrls ?? []).length > 0,
+  ).length;
+
+  const etsyShopUrl = shop
+    ? `https://www.etsy.com/shop/${encodeURIComponent(
+        shop.shopName,
+      )}`
+    : null;
 
   if (isLoading) {
     return (
@@ -48,8 +81,10 @@ export default function ShopProfilePage() {
           <Skeleton className="h-5 w-full max-w-2xl" />
         </div>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          {Array.from({ length: 3 }).map(
+        <Skeleton className="mt-6 h-40 rounded-xl" />
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map(
             (_, index) => (
               <Skeleton
                 key={index}
@@ -129,6 +164,33 @@ export default function ShopProfilePage() {
     );
   }
 
+  const summaryCards = [
+    {
+      title: "Listings Available",
+      value: String(totalAvailable),
+      description:
+        "Listings returned by Etsy",
+    },
+    {
+      title: "Active Listings",
+      value: String(activeListings),
+      description:
+        "Listings currently marked active",
+    },
+    {
+      title: "Other Statuses",
+      value: String(inactiveListings),
+      description:
+        "Draft, inactive, or sold-out listings",
+    },
+    {
+      title: "With Images",
+      value: String(listingsWithImages),
+      description:
+        "Listings containing image URLs",
+    },
+  ];
+
   return (
     <div className="mx-auto w-full min-w-0 max-w-5xl px-3 sm:px-4 lg:px-0">
       <div className="min-w-0">
@@ -147,68 +209,91 @@ export default function ShopProfilePage() {
         </p>
       </div>
 
-      <div className="mt-6 grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card>
-          <CardContent className="p-4 sm:p-5">
-            <p className="text-sm text-muted-foreground">
-              Shop name
-            </p>
+      <Card className="mt-6 min-w-0 overflow-hidden">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
+              <Avatar className="size-14 shrink-0 sm:size-16">
+                <AvatarFallback className="text-lg font-bold">
+                  {getShopInitials(shop.shopName)}
+                </AvatarFallback>
+              </Avatar>
 
-            <p className="mt-2 wrap-break-words text-xl font-bold">
-              {shop.shopName}
-            </p>
-          </CardContent>
-        </Card>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="wrap-break-words text-xl font-bold sm:text-2xl">
+                    {shop.shopName}
+                  </h2>
 
-        <Card>
-          <CardContent className="p-4 sm:p-5">
-            <p className="text-sm text-muted-foreground">
-              Listings available
-            </p>
+                  <Badge className="w-fit">
+                    <CircleCheckBig className="size-3.5" />
+                    Connected
+                  </Badge>
+                </div>
 
-            <p className="mt-2 text-2xl font-bold">
-              {totalAvailable}
-            </p>
-          </CardContent>
-        </Card>
+                <p className="mt-1 break-all text-sm text-muted-foreground">
+                  Etsy Shop ID: {shop.shopId}
+                </p>
+              </div>
+            </div>
 
-        <Card>
-          <CardContent className="p-4 sm:p-5">
-            <p className="text-sm text-muted-foreground">
-              Active listings
-            </p>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              className="w-full shrink-0 sm:w-auto"
+              render={
+                <a
+                  href={etsyShopUrl ?? "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                />
+              }
+            >
+              Open Etsy Shop
+              <ExternalLink className="size-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-            <p className="mt-2 text-2xl font-bold">
-              {activeListings}
-            </p>
-          </CardContent>
-        </Card>
+      <div className="mt-6 grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {summaryCards.map((item) => (
+          <Card
+            key={item.title}
+            className="min-w-0"
+          >
+            <CardContent className="p-4 sm:p-5">
+              <p className="wrap-break-words text-sm text-muted-foreground">
+                {item.title}
+              </p>
+
+              <p className="mt-2 wrap-break-words text-2xl font-bold">
+                {item.value}
+              </p>
+
+              <p className="mt-2 wrap-break-words text-xs leading-5 text-muted-foreground">
+                {item.description}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <Card className="mt-6 min-w-0">
         <CardHeader>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle>
-                Connected Etsy Shop
-              </CardTitle>
+          <CardTitle>
+            Connected Etsy Shop
+          </CardTitle>
 
-              <CardDescription className="mt-1">
-                Shop information returned by the Etsy
-                connection.
-              </CardDescription>
-            </div>
-
-            <Badge className="w-fit">
-              <CircleCheckBig className="size-3.5" />
-              Connected
-            </Badge>
-          </div>
+          <CardDescription>
+            Shop information currently available to
+            SellerOS.
+          </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border bg-muted/30 p-4">
+            <div className="min-w-0 rounded-xl border bg-muted/30 p-4">
               <p className="text-xs text-muted-foreground">
                 Etsy shop name
               </p>
@@ -218,7 +303,7 @@ export default function ShopProfilePage() {
               </p>
             </div>
 
-            <div className="rounded-xl border bg-muted/30 p-4">
+            <div className="min-w-0 rounded-xl border bg-muted/30 p-4">
               <p className="text-xs text-muted-foreground">
                 Etsy shop ID
               </p>
@@ -239,23 +324,21 @@ export default function ShopProfilePage() {
               <ArrowRight className="size-4" />
             </Button>
 
-            {listingsWithUrls[0]?.listingUrl && (
-              <Button
-                variant="outline"
-                nativeButton={false}
-                className="w-full sm:w-auto"
-                render={
-                  <a
-                    href={listingsWithUrls[0].listingUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  />
-                }
-              >
-                Open Etsy Listing
-                <ExternalLink className="size-4" />
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              nativeButton={false}
+              className="w-full sm:w-auto"
+              render={
+                <a
+                  href={etsyShopUrl ?? "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                />
+              }
+            >
+              Visit Etsy Shop
+              <ExternalLink className="size-4" />
+            </Button>
 
             <Button
               variant="outline"
@@ -267,11 +350,12 @@ export default function ShopProfilePage() {
             </Button>
           </div>
 
-          <p className="text-xs leading-5 text-muted-foreground">
+          <p className="wrap-break-words text-xs leading-5 text-muted-foreground">
             SellerOS currently receives the shop name,
             shop ID, and listing data from Etsy. Full
-            shop branding, announcement, and biography
-            fields are not yet imported.
+            shop branding, announcement, biography,
+            reviews, and sales totals are not yet
+            imported.
           </p>
         </CardContent>
       </Card>

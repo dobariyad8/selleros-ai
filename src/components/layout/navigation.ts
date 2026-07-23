@@ -1,11 +1,13 @@
 import {
   BarChart3,
+  CreditCard,
   FileSearch,
   ImageIcon,
   LayoutDashboard,
   ListChecks,
   Settings,
   Sparkles,
+  Store,
   Tags,
   Trophy,
   type LucideIcon,
@@ -57,6 +59,16 @@ export const navigationItems: NavigationItem[] = [
     name: "Images",
     href: "/images",
     icon: ImageIcon,
+  },
+    {
+    name: "Shop Profile",
+    href: "/shop-profile",
+    icon: Store,
+  },
+  {
+    name: "Subscription",
+    href: "/subscription",
+    icon: CreditCard,
   },
   {
     name: "Settings",
