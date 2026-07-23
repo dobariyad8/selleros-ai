@@ -9,8 +9,12 @@ import { useRouter } from "next/navigation";
 import {
   Bell,
   ChevronDown,
+  CreditCard,
   Search,
+  Settings,
+  Store,
   TriangleAlert,
+  Unplug,
 } from "lucide-react";
 
 import { useListings } from "@/hooks/useListings";
@@ -47,10 +51,11 @@ export default function Header() {
     useState(false);
 
   const {
-    analyzedListings,
-    searchQuery,
-    setSearchQuery,
-  } = useListings();
+  analyzedListings,
+  shop,
+  searchQuery,
+  setSearchQuery,
+} = useListings();
 
   const notifications = useMemo(
     () =>
@@ -91,6 +96,17 @@ export default function Header() {
   ) {
     event.preventDefault();
     openListingSearch();
+  }
+
+  function disconnectEtsyShop() {
+    const form = document.createElement("form");
+
+    form.method = "POST";
+    form.action = "/api/auth/etsy/disconnect";
+    form.style.display = "none";
+
+    document.body.appendChild(form);
+    form.submit();
   }
 
   return (
@@ -329,7 +345,7 @@ export default function Header() {
               </p>
 
               <p className="mt-1 truncate text-xs text-muted-foreground">
-                Uniquely Crafts
+                {shop?.shopName ?? "Etsy shop"}
               </p>
             </div>
 
@@ -338,35 +354,54 @@ export default function Header() {
 
           <DropdownMenuContent
             align="end"
-            className="w-52 max-w-[calc(100vw-1rem)]"
+            className="w-56 max-w-[calc(100vw-1rem)]"
           >
             <DropdownMenuGroup>
               <DropdownMenuLabel>
                 My account
               </DropdownMenuLabel>
-
-              <DropdownMenuItem>
+                    
+              <DropdownMenuItem
+                onClick={() => {
+                  router.push("/shop-profile");
+                }}
+              >
+                <Store className="size-4" />
                 Shop profile
               </DropdownMenuItem>
-
-              <DropdownMenuItem>
+              
+              <DropdownMenuItem
+                onClick={() => {
+                  router.push("/subscription");
+                }}
+              >
+                <CreditCard className="size-4" />
                 Subscription
               </DropdownMenuItem>
-
+              
               <DropdownMenuItem
                 onClick={() => {
                   router.push("/settings");
                 }}
               >
+                <Settings className="size-4" />
                 Settings
               </DropdownMenuItem>
             </DropdownMenuGroup>
-
+              
             <DropdownMenuSeparator />
-
+              
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                Sign out
+              <DropdownMenuItem
+                variant="destructive"
+                disabled={!shop}
+                onClick={disconnectEtsyShop}
+              >
+                <Unplug className="size-4" />
+              
+                {shop
+                  ? "Disconnect Etsy Shop"
+                  : "No Etsy Shop Connected"}
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
