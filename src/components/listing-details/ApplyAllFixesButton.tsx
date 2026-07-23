@@ -33,33 +33,49 @@ export default function ApplyAllFixesButton({
   }
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
+    <AlertDialog
+      open={open}
+      onOpenChange={setOpen}
+    >
       <AlertDialogTrigger
         render={
-          <Button disabled={disabled}>
-            <Sparkles className="size-4" />
-            {disabled ? "All fixes applied" : "Apply all AI fixes"}
+          <Button
+            className="w-full sm:w-auto"
+            disabled={disabled}
+          >
+            <Sparkles className="size-4 shrink-0" />
+            <span className="wrap-break-words">
+              {disabled
+                ? "All fixes applied"
+                : "Apply all AI fixes"}
+            </span>
           </Button>
         }
       />
 
-      <AlertDialogContent>
+      <AlertDialogContent className="w-[calc(100%-2rem)] max-w-lg">
         <AlertDialogHeader>
-          <AlertDialogTitle>
+          <AlertDialogTitle className="wrap-break-words">
             Apply all AI recommendations?
           </AlertDialogTitle>
 
-          <AlertDialogDescription>
-            This will apply the suggested title, pricing, tags,
-            and description changes to the current mock listing.
+          <AlertDialogDescription className="wrap-break-words">
+            This will apply the suggested title,
+            pricing, tags, and description changes
+            to the current mock listing.
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogFooter className="gap-2 sm:gap-0">
+          <AlertDialogCancel className="w-full sm:w-auto">
+            Cancel
+          </AlertDialogCancel>
 
-          <AlertDialogAction onClick={handleApply}>
-            <Sparkles className="size-4" />
+          <AlertDialogAction
+            className="w-full sm:w-auto"
+            onClick={handleApply}
+          >
+            <Sparkles className="size-4 shrink-0" />
             Apply recommendations
           </AlertDialogAction>
         </AlertDialogFooter>

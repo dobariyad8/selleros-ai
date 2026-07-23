@@ -186,7 +186,7 @@ export default function AuditPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-8">
+      <div className="mx-auto w-full min-w-0 max-w-7xl space-y-5 px-3 sm:space-y-8 sm:px-4 lg:px-0">
         <div className="space-y-3">
           <Skeleton className="h-4 w-32" />
 
@@ -195,7 +195,7 @@ export default function AuditPage() {
           <Skeleton className="h-4 w-48" />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
           {Array.from({ length: 6 }).map(
             (_, index) => (
               <Skeleton
@@ -215,29 +215,33 @@ export default function AuditPage() {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-6">
-        <h1 className="text-xl font-semibold text-red-700">
-          Could not load listing
-        </h1>
+      <div className="mx-auto w-full min-w-0 max-w-7xl px-3 sm:px-4 lg:px-0">
+        <div className="min-w-0 rounded-xl border border-red-200 bg-red-50 p-5 sm:p-6">
+          <h1 className="text-xl font-semibold text-red-700">
+            Could not load listing
+          </h1>
 
-        <p className="mt-2 text-sm text-red-600">
-          {error}
-        </p>
+          <p className="mt-2 wrap-break-words text-sm text-red-600">
+            {error}
+          </p>
+        </div>
       </div>
     );
   }
 
   if (!listing) {
     return (
-      <div className="rounded-xl border bg-card p-6">
-        <h1 className="text-xl font-semibold">
-          Listing not found
-        </h1>
+      <div className="mx-auto w-full min-w-0 max-w-7xl px-3 sm:px-4 lg:px-0">
+        <div className="min-w-0 rounded-xl border bg-card p-5 sm:p-6">
+          <h1 className="text-xl font-semibold">
+            Listing not found
+          </h1>
 
-        <p className="mt-2 text-sm text-muted-foreground">
-          We could not find a listing matching ID{" "}
-          {listingId}.
-        </p>
+          <p className="mt-2 break-words text-sm text-muted-foreground">
+            We could not find a listing matching ID{" "}
+            {listingId}.
+          </p>
+        </div>
       </div>
     );
   }
@@ -318,18 +322,18 @@ export default function AuditPage() {
     overallResult.recommendations[0];
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
+    <div className="mx-auto w-full min-w-0 max-w-7xl space-y-5 px-3 sm:space-y-8 sm:px-4 lg:px-0">
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <p className="text-sm text-muted-foreground">
               AI Listing Auditor
             </p>
 
-            <h1 className="mt-2 text-3xl font-bold">
+            <h1 className="mt-2 wrap-break-words text-2xl font-bold tracking-tight sm:text-3xl">
               {listing.title}
             </h1>
 
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-2 break-all text-sm text-muted-foreground">
               Listing ID: {listing.id}
             </p>
 
@@ -353,9 +357,9 @@ export default function AuditPage() {
               type="button"
               variant="outline"
               onClick={handleDiscardDraft}
-              className="shrink-0"
+              className="w-full shrink-0 sm:w-auto"
             >
-              <Trash2 />
+              <Trash2 className="size-4 shrink-0" />
               Discard Saved Draft
             </Button>
           )}
@@ -393,122 +397,138 @@ export default function AuditPage() {
         />
       </div>
 
-      <OpportunityCard
-        title={
-          topRecommendation?.title ??
-          "Maintain listing quality"
-        }
-        impact={`${
-          topRecommendation?.impact === "high"
-            ? "High"
-            : topRecommendation?.impact ===
-                "medium"
-              ? "Medium"
-              : "Low"
-        } Impact`}
-        effort="5–15 minutes"
-        recommendation={
-          topRecommendation?.description ??
-          "Continue monitoring and testing this listing."
-        }
-      />
+      <div className="min-w-0">
+        <OpportunityCard
+          title={
+            topRecommendation?.title ??
+            "Maintain listing quality"
+          }
+          impact={`${
+            topRecommendation?.impact === "high"
+              ? "High"
+              : topRecommendation?.impact ===
+                  "medium"
+                ? "Medium"
+                : "Low"
+          } Impact`}
+          effort="5–15 minutes"
+          recommendation={
+            topRecommendation?.description ??
+            "Continue monitoring and testing this listing."
+          }
+        />
+      </div>
 
-      <AIOptimizeListingCard
-        currentTitle={listing.title}
-        currentDescription={
-          listing.description ?? ""
-        }
-        currentTags={listing.tags ?? []}
-        onOptimizationComplete={
-          handleOptimizationComplete
-        }
-      />
+      <div className="min-w-0">
+        <AIOptimizeListingCard
+          currentTitle={listing.title}
+          currentDescription={
+            listing.description ?? ""
+          }
+          currentTags={listing.tags ?? []}
+          onOptimizationComplete={
+            handleOptimizationComplete
+          }
+        />
+      </div>
 
-      <AIRewriteCard
-        key={`title-${optimizationVersion}`}
-        current={listing.title}
-        suggested={suggestedTitle}
-        onSuggestionChange={setSuggestedTitle}
-      />
+      <div className="min-w-0">
+        <AIRewriteCard
+          key={`title-${optimizationVersion}`}
+          current={listing.title}
+          suggested={suggestedTitle}
+          onSuggestionChange={setSuggestedTitle}
+        />
+      </div>
 
-      <AIDescriptionRewriteCard
-        key={`description-${optimizationVersion}`}
-        title={listing.title}
-        current={listing.description ?? ""}
-        suggested={suggestedDescription}
-        onSuggestionChange={
-          setSuggestedDescription
-        }
-      />
+      <div className="min-w-0">
+        <AIDescriptionRewriteCard
+          key={`description-${optimizationVersion}`}
+          title={listing.title}
+          current={listing.description ?? ""}
+          suggested={suggestedDescription}
+          onSuggestionChange={
+            setSuggestedDescription
+          }
+        />
+      </div>
 
-      <AITagGeneratorCard
-        key={`tags-${optimizationVersion}`}
-        title={listing.title}
-        description={listing.description ?? ""}
-        currentTags={listing.tags ?? []}
-        suggested={suggestedTags}
+      <div className="min-w-0">
+        <AITagGeneratorCard
+          key={`tags-${optimizationVersion}`}
+          title={listing.title}
+          description={listing.description ?? ""}
+          currentTags={listing.tags ?? []}
+          suggested={suggestedTags}
         onSuggestionChange={setSuggestedTags}
       />
+      </div>
 
-      <CompleteOptimizationCard
-        currentTitle={listing.title}
-        currentDescription={
-          listing.description ?? ""
-        }
-        currentTags={listing.tags ?? []}
-        suggestedTitle={suggestedTitle}
-        suggestedDescription={
-          suggestedDescription
-        }
-        suggestedTags={suggestedTags}
-      />
+      <div className="min-w-0">
+        <CompleteOptimizationCard
+          currentTitle={listing.title}
+          currentDescription={
+            listing.description ?? ""
+          }
+          currentTags={listing.tags ?? []}
+          suggestedTitle={suggestedTitle}
+          suggestedDescription={
+            suggestedDescription
+          }
+          suggestedTags={suggestedTags}
+        />
+      </div>
 
-      <OptimizationImpactCard
-        isVisible={hasAISuggestions}
-        currentScores={{
-          overall: overallResult.score,
-          title: titleResult.score,
-          tags: tagResult.score,
-          description: descriptionResult.score,
-        }}
-        projectedScores={{
-          overall: projectedOverallResult.score,
-          title: projectedTitleResult.score,
-          tags: projectedTagResult.score,
-          description:
-            projectedDescriptionResult.score,
-        }}
-      />
+      <div className="min-w-0">
+        <OptimizationImpactCard
+          isVisible={hasAISuggestions}
+          currentScores={{
+            overall: overallResult.score,
+            title: titleResult.score,
+            tags: tagResult.score,
+            description: descriptionResult.score,
+          }}
+          projectedScores={{
+            overall: projectedOverallResult.score,
+            title: projectedTitleResult.score,
+            tags: projectedTagResult.score,
+            description:
+              projectedDescriptionResult.score,
+          }}
+        />
+      </div>
 
-      <AnalysisSection
-        title="Overall Listing Analysis"
-        result={overallResult}
-      />
-
-      <AnalysisSection
-        title="Title Analysis"
-        result={titleResult}
-      />
-
-      <AnalysisSection
-        title="Tags Analysis"
-        result={tagResult}
-      />
-
-      <AnalysisSection
-        title="Description Analysis"
-        result={descriptionResult}
-      />
-
-      <AnalysisSection
-        title="Images Analysis"
-        result={imageResult}
-      />
-
-      <AnalysisSection
-        title="Pricing Analysis"
-        result={pricingResult}
-      />
+      <div className="min-w-0 space-y-5 sm:space-y-8">
+        <AnalysisSection
+          title="Overall Listing Analysis"
+          result={overallResult}
+        />
+  
+        <AnalysisSection
+          title="Title Analysis"
+          result={titleResult}
+        />
+  
+        <AnalysisSection
+          title="Tags Analysis"
+          result={tagResult}
+        />
+  
+        <AnalysisSection
+          title="Description Analysis"
+          result={descriptionResult}
+        />
+  
+        <AnalysisSection
+          title="Images Analysis"
+          result={imageResult}
+        />
+  
+        <AnalysisSection
+          title="Pricing Analysis"
+          result={pricingResult}
+        />
+      </div>
     </div>
   );
 }

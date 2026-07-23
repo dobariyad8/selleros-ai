@@ -77,7 +77,8 @@ export default function AIOptimizeListingCard({
         !response.ok ||
         !data.success ||
         !optimizedListing ||
-        typeof optimizedListing.title !== "string" ||
+        typeof optimizedListing.title !==
+          "string" ||
         typeof optimizedListing.description !==
           "string" ||
         !Array.isArray(optimizedListing.tags)
@@ -116,25 +117,27 @@ export default function AIOptimizeListingCard({
   }
 
   return (
-    <div className="rounded-xl border border-primary/20 bg-primary/5 p-6 shadow-sm">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <Sparkles className="size-5 text-primary" />
+    <div className="min-w-0 rounded-xl border border-primary/20 bg-primary/5 p-4 shadow-sm sm:p-6">
+      <div className="flex min-w-0 flex-col gap-4 sm:gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
+            <Sparkles className="size-5 shrink-0 text-primary" />
 
-            <h2 className="text-lg font-semibold">
+            <h2 className="min-w-0 wrap-break-words text-base font-semibold sm:text-lg">
               Optimize Entire Listing
             </h2>
           </div>
 
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Generate an improved title, description, and
-            13 Etsy-valid tags in one complete optimization.
+          <p className="mt-2 max-w-2xl wrap-break-words text-sm leading-6 text-muted-foreground">
+            Generate an improved title, description,
+            and 13 Etsy-valid tags in one complete
+            optimization.
           </p>
         </div>
 
         <Button
           type="button"
+          className="w-full shrink-0 sm:w-auto"
           onClick={optimizeEntireListing}
           disabled={
             isOptimizing ||
@@ -143,12 +146,12 @@ export default function AIOptimizeListingCard({
         >
           {isOptimizing ? (
             <>
-              <LoaderCircle className="animate-spin" />
+              <LoaderCircle className="size-4 shrink-0 animate-spin" />
               Optimizing Listing
             </>
           ) : (
             <>
-              <Sparkles />
+              <Sparkles className="size-4 shrink-0" />
               {isComplete
                 ? "Optimize Again"
                 : "Optimize Entire Listing"}
@@ -159,22 +162,23 @@ export default function AIOptimizeListingCard({
 
       {isOptimizing && (
         <div
-          className="mt-5 rounded-lg border bg-background/70 p-4"
+          className="mt-5 min-w-0 rounded-lg border bg-background/70 p-4"
           aria-live="polite"
         >
-          <div className="flex items-center gap-3">
-            <LoaderCircle className="size-5 animate-spin text-primary" />
+          <div className="flex min-w-0 items-start gap-3">
+            <LoaderCircle className="mt-0.5 size-5 shrink-0 animate-spin text-primary" />
 
-            <div>
-              <p className="text-sm font-medium">
+            <div className="min-w-0">
+              <p className="wrap-break-words text-sm font-medium">
                 Creating your complete optimization…
               </p>
 
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 wrap-break-words text-xs leading-5 text-muted-foreground">
                 SellerOS is rewriting the title and
-                description, generating tags, and validating
-                the results. This may take a little longer
-                than an individual rewrite.
+                description, generating tags, and
+                validating the results. This may take
+                a little longer than an individual
+                rewrite.
               </p>
             </div>
           </div>
@@ -183,19 +187,19 @@ export default function AIOptimizeListingCard({
 
       {isComplete && !isOptimizing && (
         <div
-          className="mt-5 flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-800"
+          className="mt-5 flex min-w-0 items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-800"
           role="status"
         >
           <CheckCircle2 className="mt-0.5 size-5 shrink-0" />
 
-          <div>
-            <p className="text-sm font-medium">
+          <div className="min-w-0">
+            <p className="wrap-break-words text-sm font-medium">
               Complete optimization generated
             </p>
 
-            <p className="mt-1 text-xs">
-              The optimized title, description, and tags
-              are ready for review and copying.
+            <p className="mt-1 wrap-break-words text-xs leading-5">
+              The optimized title, description, and
+              tags are ready for review and copying.
             </p>
           </div>
         </div>
@@ -204,7 +208,7 @@ export default function AIOptimizeListingCard({
       {error && (
         <div
           role="alert"
-          className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+          className="mt-5 min-w-0 wrap-break-words rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
         >
           {error}
         </div>

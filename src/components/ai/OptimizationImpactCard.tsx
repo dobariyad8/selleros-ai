@@ -42,41 +42,43 @@ function ScoreRow({
   const change = projected - current;
 
   return (
-    <div className="grid gap-3 rounded-lg border p-4 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center">
-      <div>
-        <p className="font-medium">{label}</p>
+    <div className="grid min-w-0 gap-3 rounded-lg border p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center">
+      <div className="min-w-0">
+        <p className="wrap-break-words font-medium">
+          {label}
+        </p>
 
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="mt-1 wrap-break-words text-xs text-muted-foreground">
           Estimated rule-based score
         </p>
       </div>
 
-      <div className="flex items-center gap-2">
-        <div className="min-w-20 rounded-md bg-muted px-3 py-2 text-center">
+      <div className="grid min-w-0 grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <div className="min-w-0 rounded-md bg-muted px-2 py-2 text-center sm:px-3">
           <p className="text-xs text-muted-foreground">
             Current
           </p>
 
-          <p className="font-semibold">
+          <p className="wrap-break-words font-semibold">
             {current}/100
           </p>
         </div>
 
-        <ArrowRight className="size-4 text-muted-foreground" />
+        <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
 
-        <div className="min-w-20 rounded-md bg-muted px-3 py-2 text-center">
+        <div className="min-w-0 rounded-md bg-muted px-2 py-2 text-center sm:px-3">
           <p className="text-xs text-muted-foreground">
             Projected
           </p>
 
-          <p className="font-semibold">
+          <p className="wrap-break-words font-semibold">
             {projected}/100
           </p>
         </div>
       </div>
 
       <div
-        className={`flex w-fit items-center gap-1 rounded-full px-3 py-1 text-sm font-medium ${
+        className={`flex w-fit shrink-0 items-center gap-1 rounded-full px-3 py-1 text-sm font-medium ${
           change > 0
             ? "bg-emerald-100 text-emerald-700"
             : change < 0
@@ -85,11 +87,11 @@ function ScoreRow({
         }`}
       >
         {change > 0 ? (
-          <TrendingUp className="size-4" />
+          <TrendingUp className="size-4 shrink-0" />
         ) : change < 0 ? (
-          <TrendingDown className="size-4" />
+          <TrendingDown className="size-4 shrink-0" />
         ) : (
-          <Minus className="size-4" />
+          <Minus className="size-4 shrink-0" />
         )}
 
         {change > 0 ? "+" : ""}
@@ -113,13 +115,13 @@ export default function OptimizationImpactCard({
     currentScores.overall;
 
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm">
-      <div>
-        <h2 className="text-lg font-semibold">
+    <div className="min-w-0 rounded-xl border bg-card p-4 shadow-sm sm:p-6">
+      <div className="min-w-0">
+        <h2 className="wrap-break-words text-base font-semibold sm:text-lg">
           Projected Optimization Impact
         </h2>
 
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 wrap-break-words text-sm leading-6 text-muted-foreground">
           Compare the current listing with the title,
           description, and tags currently shown in the AI
           editors.
@@ -127,7 +129,7 @@ export default function OptimizationImpactCard({
       </div>
 
       <div
-        className={`mt-5 rounded-lg border p-4 ${
+        className={`mt-5 min-w-0 rounded-lg border p-3 sm:p-4 ${
           overallChange > 0
             ? "border-emerald-200 bg-emerald-50"
             : overallChange < 0
@@ -139,18 +141,18 @@ export default function OptimizationImpactCard({
           Overall projected change
         </p>
 
-        <p className="mt-1 text-2xl font-bold">
+        <p className="mt-1 wrap-break-words text-xl font-bold sm:text-2xl">
           {overallChange > 0 ? "+" : ""}
           {overallChange} points
         </p>
 
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="mt-1 wrap-break-words text-xs leading-5 text-muted-foreground">
           This estimate is based on SellerOS scoring rules,
           not guaranteed Etsy traffic or sales.
         </p>
       </div>
 
-      <div className="mt-6 space-y-3">
+      <div className="mt-5 min-w-0 space-y-3 sm:mt-6">
         <ScoreRow
           label="Overall listing"
           currentScore={currentScores.overall}

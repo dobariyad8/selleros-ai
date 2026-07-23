@@ -246,7 +246,7 @@ export default function AIRecommendations({
     return {
       all: generatedRecommendations,
       displayed: showAll
-        ? generatedRecommendations
+        ? generatedRecommendations.slice(0, 10)
         : generatedRecommendations.slice(0, 3),
     };
   }, [analyzedListings, showAll]);
@@ -263,14 +263,14 @@ export default function AIRecommendations({
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
+      <Card className="min-w-0">
+        <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
           <Skeleton className="h-6 w-48" />
           <Skeleton className="h-4 w-72" />
         </CardHeader>
 
-        <CardContent>
-          <div className="grid gap-4 lg:grid-cols-3">
+        <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
             {Array.from({ length: 3 }).map(
               (_, index) => (
                 <Skeleton
@@ -287,8 +287,8 @@ export default function AIRecommendations({
 
   if (error) {
     return (
-      <Card className="border-red-200">
-        <CardHeader>
+      <Card className="min-w-0 border-red-200">
+        <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
           <CardTitle className="flex items-center gap-2 text-red-700">
             <Sparkles className="size-5" />
             AI Recommendations
@@ -300,7 +300,7 @@ export default function AIRecommendations({
           </CardDescription>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {error}
           </div>
@@ -311,12 +311,12 @@ export default function AIRecommendations({
 
   return (
     <>
-      <Card className="transition-shadow hover:shadow-md">
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="size-5" />
+      <Card className="min-w-0 transition-shadow hover:shadow-md">
+        <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <CardTitle className="flex min-w-0 items-center gap-2 text-base sm:text-lg">
+                <Sparkles className="size-5 shrink-0" />
                 AI Recommendations
               </CardTitle>
 
@@ -326,19 +326,29 @@ export default function AIRecommendations({
               </CardDescription>
             </div>
 
-            <Badge variant="outline">
-              {recommendationData.all.length}{" "}
-              {recommendationData.all.length === 1
-                ? "recommendation"
-                : "recommendations"}
+            <Badge
+              variant="outline"
+              className="w-fit shrink-0"
+            >
+              {showAll
+                ? `Top ${Math.min(
+                    recommendationData.all.length,
+                    10,
+                  )}`
+                : recommendationData.all.length}{" "}
+              {showAll
+                ? "recommendations"
+                : recommendationData.all.length === 1
+                  ? "recommendation"
+                  : "recommendations"}
             </Badge>
           </div>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
           {recommendationData.displayed.length >
           0 ? (
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
               {recommendationData.displayed.map(
                 (recommendation) => {
                   const RecommendationIcon =
@@ -349,9 +359,9 @@ export default function AIRecommendations({
                   return (
                     <div
                       key={recommendation.id}
-                      className="group flex h-full flex-col rounded-xl border p-4 transition-all hover:-translate-y-0.5 hover:bg-muted/30 hover:shadow-sm"
+                      className="group min-w-0 flex h-full flex-col rounded-xl border p-3 transition-all hover:-translate-y-0.5 hover:bg-muted/30 hover:shadow-sm sm:p-4"
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start justify-between gap-3">
                         <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                           <RecommendationIcon className="size-5" />
                         </div>
@@ -360,12 +370,13 @@ export default function AIRecommendations({
                           variant={getPriorityVariant(
                             recommendation.priority,
                           )}
+                          className="shrink-0"
                         >
                           {recommendation.priority}
                         </Badge>
                       </div>
 
-                      <div className="mt-4">
+                      <div className="mt-4 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="outline">
                             {recommendation.type}
@@ -379,11 +390,11 @@ export default function AIRecommendations({
                           </span>
                         </div>
 
-                        <h3 className="mt-3 font-semibold">
+                        <h3 className="mt-3 wrap-break-words font-semibold">
                           {recommendation.title}
                         </h3>
 
-                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                        <p className="mt-1 line-clamp-2 wrap-break-words text-sm text-muted-foreground">
                           {
                             recommendation.listingTitle
                           }
@@ -413,7 +424,7 @@ export default function AIRecommendations({
                       </div>
 
                       <Button
-                        className="mt-auto pt-4"
+                        className="mt-auto w-full pt-4 sm:w-auto"
                         size="sm"
                         onClick={() =>
                           openWorkspace(
@@ -430,7 +441,7 @@ export default function AIRecommendations({
               )}
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed p-8 text-center">
+            <div className="rounded-xl border border-dashed p-5 text-center sm:p-8">
               <Sparkles className="mx-auto size-9 text-emerald-600" />
 
               <p className="mt-3 font-medium">

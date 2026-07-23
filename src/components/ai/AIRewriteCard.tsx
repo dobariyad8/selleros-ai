@@ -9,8 +9,8 @@ import {
   Sparkles,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import ScoreComparison from "@/components/ai/ScoreComparison";
+import { Button } from "@/components/ui/button";
 import { calculateTitleScore } from "@/lib/scoring/titleScore";
 
 type AIRewriteCardProps = {
@@ -50,10 +50,10 @@ export default function AIRewriteCard({
     ? calculateTitleScore(aiSuggestion).score
     : null;
 
-    function updateSuggestion(value: string) {
-      setAiSuggestion(value);
-      onSuggestionChange?.(value);
-    }
+  function updateSuggestion(value: string) {
+    setAiSuggestion(value);
+    onSuggestionChange?.(value);
+  }
 
   async function generateRewrite() {
     try {
@@ -88,10 +88,9 @@ export default function AIRewriteCard({
         );
       }
 
-      const cleanedSuggestion =
-        data.suggestedTitle.trim();
-        
-      updateSuggestion(cleanedSuggestion);
+      updateSuggestion(
+        data.suggestedTitle.trim(),
+      );
     } catch (caughtError) {
       const message =
         caughtError instanceof Error
@@ -127,108 +126,116 @@ export default function AIRewriteCard({
   }
 
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm">
-      <div className="flex items-center gap-2">
-        <Sparkles className="size-5 text-primary" />
+    <div className="min-w-0 rounded-xl border bg-card p-4 shadow-sm sm:p-6">
+      <div className="flex min-w-0 items-center gap-2">
+        <Sparkles className="size-5 shrink-0 text-primary" />
 
-        <h2 className="text-lg font-semibold">
+        <h2 className="min-w-0 wrap-break-words text-base font-semibold sm:text-lg">
           AI Title Rewrite
         </h2>
       </div>
 
-      <p className="mt-2 text-sm text-muted-foreground">
+      <p className="mt-2 wrap-break-words text-sm leading-6 text-muted-foreground">
         Generate an optimized title based on the current
         Etsy listing.
       </p>
 
-      <div className="mt-6 space-y-6">
-        <div>
+      <div className="mt-5 min-w-0 space-y-5 sm:mt-6 sm:space-y-6">
+        <div className="min-w-0">
           <p className="text-sm font-medium text-muted-foreground">
             Current title
           </p>
 
-          <div className="mt-2 rounded-lg border bg-muted/40 p-4 text-sm leading-6">
+          <div className="mt-2 min-w-0 wrap-break-words rounded-lg border bg-muted/40 p-3 text-sm leading-6 sm:p-4">
             {current}
           </div>
         </div>
 
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-medium text-emerald-700">
             Suggested title
           </p>
 
           {isGenerating ? (
-              <div
-                className="mt-2 min-h-24 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-700"
-                aria-live="polite"
-              >
-                <div className="flex items-center gap-2">
-                  <LoaderCircle className="size-4 animate-spin" />
+            <div
+              className="mt-2 min-h-24 min-w-0 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm leading-6 text-emerald-700 sm:p-4"
+              aria-live="polite"
+            >
+              <div className="flex min-w-0 items-start gap-2">
+                <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin" />
+
+                <span className="wrap-break-words">
                   Generating an optimized title…
-                </div>
+                </span>
               </div>
-            ) : (
-              <>
-                <textarea
-                  value={aiSuggestion}
-                  onChange={(event) =>
-                    updateSuggestion(event.target.value)
+            </div>
+          ) : (
+            <>
+              <textarea
+                value={aiSuggestion}
+                onChange={(event) =>
+                  updateSuggestion(
+                    event.target.value,
+                  )
+                }
+                maxLength={140}
+                rows={4}
+                placeholder="Generate a rewrite to see an optimized title."
+                className="mt-2 w-full min-w-0 resize-y rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm leading-6 text-emerald-950 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 sm:p-4"
+              />
+
+              <div className="mt-2 flex min-w-0 flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                <span className="wrap-break-words text-muted-foreground">
+                  Edit the suggestion before copying it.
+                </span>
+
+                <span
+                  className={
+                    aiSuggestion.length >= 130
+                      ? "shrink-0 font-medium text-amber-700"
+                      : "shrink-0 text-muted-foreground"
                   }
-                  maxLength={140}
-                  rows={4}
-                  placeholder="Generate a rewrite to see an optimized title."
-                  className="mt-2 w-full resize-y rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-                />
-            
-                <div className="mt-2 flex items-center justify-between gap-4 text-xs">
-                  <span className="text-muted-foreground">
-                    Edit the suggestion before copying it.
-                  </span>
-              
-                  <span
-                    className={
-                      aiSuggestion.length >= 130
-                        ? "font-medium text-amber-700"
-                        : "text-muted-foreground"
-                    }
-                  >
-                    {aiSuggestion.length}/140
-                  </span>
-                </div>
-              </>
-            )}
+                >
+                  {aiSuggestion.length}/140
+                </span>
+              </div>
+            </>
+          )}
         </div>
 
-        <ScoreComparison
-          label="title"
-          currentScore={currentScore}
-          suggestedScore={suggestedScore}
-          nonImprovementMessage="This rewrite did not improve the rule-based title score. Generate another option before using it."
-        />
+        <div className="min-w-0">
+          <ScoreComparison
+            label="title"
+            currentScore={currentScore}
+            suggestedScore={suggestedScore}
+            nonImprovementMessage="This rewrite did not improve the rule-based title score. Generate another option before using it."
+          />
+        </div>
 
         {error && (
           <div
             role="alert"
-            className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+            className="min-w-0 wrap-break-words rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
           >
             {error}
           </div>
         )}
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
           <Button
             type="button"
+            className="w-full sm:w-auto"
             onClick={generateRewrite}
             disabled={isGenerating}
           >
             {isGenerating ? (
               <>
-                <LoaderCircle className="animate-spin" />
+                <LoaderCircle className="size-4 shrink-0 animate-spin" />
                 Generating
               </>
             ) : (
               <>
-                <RefreshCw />
+                <RefreshCw className="size-4 shrink-0" />
 
                 {aiSuggestion
                   ? "Generate Again"
@@ -240,6 +247,7 @@ export default function AIRewriteCard({
           <Button
             type="button"
             variant="outline"
+            className="w-full sm:w-auto"
             onClick={copyTitle}
             disabled={
               !aiSuggestion || isGenerating
@@ -247,12 +255,12 @@ export default function AIRewriteCard({
           >
             {isCopied ? (
               <>
-                <Check />
+                <Check className="size-4 shrink-0" />
                 Copied
               </>
             ) : (
               <>
-                <Copy />
+                <Copy className="size-4 shrink-0" />
                 Copy Title
               </>
             )}

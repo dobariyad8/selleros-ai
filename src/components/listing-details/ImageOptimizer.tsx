@@ -32,15 +32,19 @@ export default function ImageOptimizer({
   onApply,
   isApplied,
 }: ImageOptimizerProps) {
-  const [generated, setGenerated] = useState(false);
+  const [generated, setGenerated] =
+    useState(false);
 
   function generateSuggestion() {
     setGenerated(true);
 
-    toast.success("AI image suggestion generated", {
-      description:
-        "A brighter, closer hero-image preview is ready.",
-    });
+    toast.success(
+      "AI image suggestion generated",
+      {
+        description:
+          "A brighter, closer hero-image preview is ready.",
+      },
+    );
   }
 
   function applyImage() {
@@ -53,34 +57,46 @@ export default function ImageOptimizer({
   }
 
   return (
-    <Card className="xl:col-span-2">
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <ImageIcon className="size-5" />
-              Hero image optimization
+    <Card className="min-w-0 h-full">
+      <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <CardTitle className="flex min-w-0 items-center gap-2 text-base sm:text-lg">
+              <ImageIcon className="size-5 shrink-0" />
+              <span className="wrap-break-words">
+                Hero image optimization
+              </span>
             </CardTitle>
 
-            <CardDescription className="mt-1">
-              Compare the current listing image with an AI-improved preview.
+            <CardDescription className="mt-1 wrap-break-words">
+              Compare the current listing image
+              with an AI-improved preview.
             </CardDescription>
           </div>
 
-          <Badge variant={isApplied ? "default" : "destructive"}>
-            {isApplied ? "Applied" : "High impact"}
+          <Badge
+            variant={
+              isApplied
+                ? "default"
+                : "destructive"
+            }
+            className="w-fit shrink-0"
+          >
+            {isApplied
+              ? "Applied"
+              : "High impact"}
           </Badge>
         </div>
       </CardHeader>
 
-      <CardContent>
-        <div className="grid gap-5 lg:grid-cols-2">
-          <div>
+      <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+        <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-2">
+          <div className="min-w-0">
             <p className="mb-2 text-sm font-medium">
               Current hero image
             </p>
 
-            <div className="relative aspect-square overflow-hidden rounded-xl border bg-muted">
+            <div className="relative aspect-square min-w-0 overflow-hidden rounded-xl border bg-muted">
               <Image
                 src={imageUrl}
                 alt="Current listing hero image"
@@ -90,17 +106,17 @@ export default function ImageOptimizer({
               />
             </div>
 
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            <p className="mt-3 wrap-break-words text-sm leading-6 text-muted-foreground">
               {issue}
             </p>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <p className="mb-2 text-sm font-medium">
               AI-improved preview
             </p>
 
-            <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-dashed bg-muted/40">
+            <div className="relative flex aspect-square min-w-0 items-center justify-center overflow-hidden rounded-xl border border-dashed bg-muted/40">
               {generated ? (
                 <>
                   <Image
@@ -113,42 +129,49 @@ export default function ImageOptimizer({
 
                   <div className="absolute right-3 top-3">
                     <Badge className="gap-1">
-                      <Sparkles className="size-3" />
+                      <Sparkles className="size-3 shrink-0" />
                       AI preview
                     </Badge>
                   </div>
                 </>
               ) : (
-                <div className="max-w-xs p-6 text-center">
+                <div className="max-w-xs p-4 text-center sm:p-6">
                   <Sparkles className="mx-auto size-8 text-muted-foreground" />
 
                   <p className="mt-3 font-medium">
                     Generate an improved preview
                   </p>
 
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    This mock preview will simulate brighter lighting
-                    and a closer crop.
+                  <p className="mt-2 wrap-break-words text-sm text-muted-foreground">
+                    This mock preview will simulate
+                    brighter lighting and a closer
+                    crop.
                   </p>
                 </div>
               )}
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <Button
                 variant="outline"
+                className="w-full sm:w-auto"
                 onClick={generateSuggestion}
               >
-                <Sparkles className="size-4" />
-                {generated ? "Generate again" : "Generate preview"}
+                <Sparkles className="size-4 shrink-0" />
+                {generated
+                  ? "Generate again"
+                  : "Generate preview"}
               </Button>
 
               <Button
+                className="w-full sm:w-auto"
                 onClick={applyImage}
                 disabled={!generated || isApplied}
               >
-                <CheckCircle2 className="size-4" />
-                {isApplied ? "Image applied" : "Apply image"}
+                <CheckCircle2 className="size-4 shrink-0" />
+                {isApplied
+                  ? "Image applied"
+                  : "Apply image"}
               </Button>
             </div>
           </div>

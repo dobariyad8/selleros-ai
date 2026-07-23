@@ -169,13 +169,13 @@ export default function ListingsNeedingAttention() {
 
   if (isLoading) {
     return (
-      <Card className="h-full">
-        <CardHeader>
+      <Card className="h-full min-w-0">
+        <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
           <Skeleton className="h-6 w-44" />
           <Skeleton className="h-4 w-64" />
         </CardHeader>
 
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-3 px-4 pb-4 sm:px-6 sm:pb-6">
           {Array.from({ length: 3 }).map(
             (_, index) => (
               <Skeleton
@@ -191,8 +191,8 @@ export default function ListingsNeedingAttention() {
 
   if (error) {
     return (
-      <Card className="h-full border-red-200">
-        <CardHeader>
+      <Card className="h-full min-w-0 border-red-200">
+        <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
           <CardTitle className="flex items-center gap-2 text-red-700">
             <AlertTriangle className="size-5" />
             AI Action Center
@@ -204,7 +204,7 @@ export default function ListingsNeedingAttention() {
           </CardDescription>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {error}
           </div>
@@ -214,12 +214,12 @@ export default function ListingsNeedingAttention() {
   }
 
   return (
-    <Card className="h-full transition-shadow hover:shadow-md">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="size-5" />
+    <Card className="h-full min-w-0 transition-shadow hover:shadow-md">
+      <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <CardTitle className="flex min-w-0 items-center gap-2 text-base sm:text-lg">
+              <AlertTriangle className="size-5 shrink-0" />
               AI Action Center
             </CardTitle>
 
@@ -231,7 +231,7 @@ export default function ListingsNeedingAttention() {
 
           <Badge
             variant="outline"
-            className="shrink-0"
+            className="w-fit shrink-0"
           >
             {attentionData.totalCount}{" "}
             {attentionData.totalCount === 1
@@ -241,7 +241,7 @@ export default function ListingsNeedingAttention() {
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
         {attentionData.visibleListings.length > 0 ? (
           <div className="space-y-3">
             {attentionData.visibleListings.map(
@@ -253,21 +253,21 @@ export default function ListingsNeedingAttention() {
                 return (
                   <div
                     key={listing.id}
-                    className="group rounded-xl border p-4 transition-colors hover:bg-muted/40"
+                    className="group min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/40 sm:p-4"
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
                       <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
                         <IssueIcon className="size-5" />
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
                             <p className="line-clamp-2 font-medium">
                               {listing.title}
                             </p>
 
-                            <p className="mt-1 text-sm text-muted-foreground">
+                            <p className="mt-1 wrap-break-words text-sm text-muted-foreground">
                               {listing.issue}
                             </p>
                           </div>
@@ -276,12 +276,13 @@ export default function ListingsNeedingAttention() {
                             variant={getPriorityVariant(
                               listing.priority,
                             )}
+                            className="w-fit shrink-0"
                           >
                             {listing.priority}
                           </Badge>
                         </div>
 
-                        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div>
                             <p className="text-xs text-muted-foreground">
                               Overall listing score
@@ -299,6 +300,7 @@ export default function ListingsNeedingAttention() {
                           <Button
                             variant="outline"
                             size="sm"
+                            className="w-full sm:w-auto"
                             nativeButton={false}
                             render={
                               <Link
@@ -318,14 +320,14 @@ export default function ListingsNeedingAttention() {
             )}
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed p-8 text-center">
+          <div className="rounded-xl border border-dashed p-5 text-center sm:p-8">
             <SearchCheck className="mx-auto size-9 text-emerald-600" />
 
             <p className="mt-3 font-medium">
               No urgent listing issues
             </p>
 
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 wrap-break-words text-sm text-muted-foreground">
               All connected listings currently score
               80 or higher.
             </p>

@@ -79,8 +79,8 @@ export default function ListingDetailsClient({
 
   if (isLoading) {
     return (
-      <div className="mx-auto flex min-h-125 w-full max-w-3xl items-center justify-center">
-        <div className="w-full rounded-xl border p-10 text-center">
+      <div className="mx-auto flex min-h-125 w-full max-w-3xl items-center justify-center px-3 sm:px-4">
+        <div className="w-full min-w-0 rounded-xl border p-6 text-center sm:p-10">
           <p className="text-sm text-muted-foreground">
             Loading listing…
           </p>
@@ -99,12 +99,12 @@ export default function ListingDetailsClient({
             Could not load listing
           </h1>
 
-          <p className="mt-2 text-sm text-red-600">
+          <p className="mt-2 wrap-break-words text-sm text-red-600">
             {error}
           </p>
 
           <Button
-            className="mt-5"
+            className="mt-5 w-full sm:w-auto"
             nativeButton={false}
             render={<Link href="/listings" />}
           >
@@ -119,7 +119,7 @@ export default function ListingDetailsClient({
   if (!importedListing) {
     return (
       <div className="mx-auto flex min-h-125 w-full max-w-3xl items-center justify-center">
-        <div className="w-full rounded-xl border border-dashed p-10 text-center">
+        <div className="w-full min-w-0 rounded-xl border border-dashed p-6 text-center sm:p-10">
           <FileWarning className="mx-auto size-10 text-muted-foreground" />
 
           <h1 className="mt-4 text-xl font-semibold">
@@ -132,7 +132,7 @@ export default function ListingDetailsClient({
           </p>
 
           <Button
-            className="mt-5"
+            className="mt-5 w-full sm:w-auto"
             nativeButton={false}
             render={<Link href="/listings" />}
           >
@@ -150,12 +150,16 @@ export default function ListingDetailsClient({
     );
 
   return (
-    <div className="mx-auto w-full max-w-7xl">
-      <ListingHeader listing={listing} />
-
-      <ListingOptimizerWorkspace
-        listing={listing}
-      />
+    <div className="mx-auto w-full min-w-0 max-w-7xl px-3 sm:px-4 lg:px-0">
+      <div className="min-w-0">
+        <ListingHeader listing={listing} />
+      </div>
+    
+      <div className="mt-4 min-w-0 sm:mt-6">
+        <ListingOptimizerWorkspace
+          listing={listing}
+        />
+      </div>
     </div>
   );
 }

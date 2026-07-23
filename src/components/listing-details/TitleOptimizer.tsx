@@ -23,42 +23,48 @@ export default function TitleOptimizer({
   isApplied,
 }: TitleOptimizerProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Title optimization</CardTitle>
+    <Card className="h-full min-w-0">
+      <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
+        <CardTitle className="wrap-break-words text-base sm:text-lg">
+          Title optimization
+        </CardTitle>
 
-        <CardDescription>
+        <CardDescription className="wrap-break-words">
           Compare the current title with the AI suggestion.
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        <div className="rounded-xl border p-4">
+      <CardContent className="space-y-4 px-4 pb-4 sm:px-6 sm:pb-6">
+        <div className="min-w-0 rounded-xl border p-3 sm:p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Current title
           </p>
 
-          <p className="mt-2 text-sm leading-6">
+          <p className="mt-2 wrap-break-words text-sm leading-6">
             {currentTitle}
           </p>
         </div>
 
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
-          <div className="flex items-center gap-2">
-            <Sparkles className="size-4" />
+        <div className="min-w-0 rounded-xl border border-primary/30 bg-primary/5 p-3 sm:p-4">
+          <div className="flex min-w-0 items-center gap-2">
+            <Sparkles className="size-4 shrink-0" />
 
-            <p className="text-xs font-medium uppercase tracking-wide">
+            <p className="wrap-break-words text-xs font-medium uppercase tracking-wide">
               AI suggested title
             </p>
           </div>
 
-          <p className="mt-2 text-sm leading-6">
+          <p className="mt-2 wrap-break-words text-sm leading-6">
             {suggestedTitle}
           </p>
         </div>
 
-        <Button className="w-full" onClick={onAccept} disabled={isApplied}>
-          Accept AI title
+        <Button
+          className="w-full"
+          onClick={onAccept}
+          disabled={isApplied}
+        >
+          {isApplied ? "AI title applied" : "Accept AI title"}
         </Button>
       </CardContent>
     </Card>

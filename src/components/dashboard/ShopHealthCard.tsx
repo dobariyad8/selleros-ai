@@ -137,13 +137,13 @@ export default function ShopHealthCard() {
 
   if (isLoading) {
     return (
-      <Card className="h-full">
-        <CardHeader>
+      <Card className="h-full min-w-0">
+        <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
           <Skeleton className="h-6 w-48" />
           <Skeleton className="h-4 w-64" />
         </CardHeader>
 
-        <CardContent className="space-y-5">
+        <CardContent className="space-y-5 px-4 pb-4 sm:px-6 sm:pb-6">
           <Skeleton className="h-28 rounded-xl" />
 
           {Array.from({ length: 5 }).map(
@@ -168,8 +168,8 @@ export default function ShopHealthCard() {
 
   if (error) {
     return (
-      <Card className="h-full border-red-200">
-        <CardHeader>
+      <Card className="h-full min-w-0 border-red-200">
+        <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
           <CardTitle className="flex items-center gap-2 text-red-700">
             <HeartPulse className="size-5" />
             Shop Health Score
@@ -181,7 +181,7 @@ export default function ShopHealthCard() {
           </CardDescription>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {error}
           </div>
@@ -192,8 +192,8 @@ export default function ShopHealthCard() {
 
   if (healthData.analyzedCount === 0) {
     return (
-      <Card className="h-full">
-        <CardHeader>
+      <Card className="h-full min-w-0">
+        <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
           <CardTitle className="flex items-center gap-2">
             <HeartPulse className="size-5" />
             Shop Health Score
@@ -205,8 +205,8 @@ export default function ShopHealthCard() {
           </CardDescription>
         </CardHeader>
 
-        <CardContent>
-          <div className="rounded-xl border border-dashed p-8 text-center">
+        <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+          <div className="rounded-xl border border-dashed p-5 text-center sm:p-8">
             <CircleAlert className="mx-auto size-8 text-muted-foreground" />
 
             <p className="mt-3 font-medium">
@@ -224,12 +224,12 @@ export default function ShopHealthCard() {
   }
 
   return (
-    <Card className="h-full transition-shadow hover:shadow-md">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <HeartPulse className="size-5" />
+    <Card className="h-full min-w-0 transition-shadow hover:shadow-md">
+      <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <CardTitle className="flex min-w-0 items-center gap-2 text-base sm:text-lg">
+              <HeartPulse className="size-5 shrink-0" />
               Shop Health Score
             </CardTitle>
 
@@ -241,7 +241,7 @@ export default function ShopHealthCard() {
 
           <Badge
             variant="outline"
-            className="shrink-0"
+            className="w-fit shrink-0"
           >
             {healthData.analyzedCount}{" "}
             {healthData.analyzedCount === 1
@@ -252,10 +252,10 @@ export default function ShopHealthCard() {
         </div>
       </CardHeader>
 
-      <CardContent>
-        <div className="mb-6 flex items-end justify-between gap-4 rounded-xl border bg-muted/30 p-4">
+      <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+        <div className="mb-5 flex min-w-0 flex-col gap-3 rounded-xl border bg-muted/30 p-4 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-4xl font-bold tracking-tight">
+            <p className="wrap-break-words text-3xl font-bold tracking-tight sm:text-4xl">
               {healthData.overallScore}
 
               <span className="text-lg font-medium text-muted-foreground">
@@ -268,10 +268,11 @@ export default function ShopHealthCard() {
             </p>
           </div>
 
-          <Badge
+          <Badge 
             variant={getBadgeVariant(
               healthData.overallScore,
             )}
+            className="w-fit"
           >
             {getScoreLabel(
               healthData.overallScore,
@@ -281,7 +282,7 @@ export default function ShopHealthCard() {
 
         <div className="space-y-5">
           {healthData.scores.map((item) => (
-            <div key={item.name}>
+            <div key={item.name} className="min-w-0">
               <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-medium">
@@ -293,7 +294,7 @@ export default function ShopHealthCard() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <span className="text-sm font-semibold">
                     {item.score}/100
                   </span>
@@ -302,7 +303,7 @@ export default function ShopHealthCard() {
                     variant={getBadgeVariant(
                       item.score,
                     )}
-                    className="gap-1"
+                    className="w-fit gap-1"
                   >
                     <ScoreStatusIcon
                       score={item.score}

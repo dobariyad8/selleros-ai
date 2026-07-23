@@ -92,16 +92,16 @@ export default function AIOpportunitySummary() {
   if (isLoading) {
     return (
       <Card className="overflow-hidden border-primary/20">
-        <CardContent className="p-6">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex min-w-0 flex-col gap-5 sm:gap-6 xl:flex-row xl:items-center xl:justify-between">
             <div className="space-y-3">
               <Skeleton className="h-6 w-44" />
-              <Skeleton className="h-9 w-80" />
+              <Skeleton className="h-9 w-full max-w-80" />
               <Skeleton className="h-5 w-96 max-w-full" />
               <Skeleton className="h-10 w-48" />
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3 xl:min-w-130">
+            <div className="grid min-w-0 gap-3 sm:grid-cols-3 xl:min-w-130">
               {Array.from({ length: 3 }).map(
                 (_, index) => (
                   <Skeleton
@@ -177,7 +177,7 @@ export default function AIOpportunitySummary() {
     <Card className="overflow-hidden border-primary/20 bg-linear-to-br from-primary/10 via-background to-background">
       <CardContent className="p-6">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
-          <div className="max-w-2xl">
+          <div className="min-w-0 max-w-2xl">
             <Badge
               variant="outline"
               className="mb-4 gap-2"
@@ -186,7 +186,7 @@ export default function AIOpportunitySummary() {
               Live shop opportunities
             </Badge>
 
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            <h1 className="text-xl font-bold tracking-tight sm:text-2xl lg:text-3xl">
               Your shop optimization overview
             </h1>
 
@@ -203,8 +203,9 @@ export default function AIOpportunitySummary() {
                 : "listings"}.
             </p>
 
-            <div className="mt-5 flex flex-wrap gap-3">
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Button
+                className="w-full sm:w-auto"
                 nativeButton={false}
                 render={<Link href="/listings" />}
               >
@@ -214,6 +215,7 @@ export default function AIOpportunitySummary() {
 
               {opportunityData.lowestScoringListing ? (
                 <Button
+                  className="w-full sm:w-auto"
                   variant="outline"
                   nativeButton={false}
                   render={
@@ -226,6 +228,7 @@ export default function AIOpportunitySummary() {
                 </Button>
               ) : (
                 <Button
+                  className="w-full sm:w-auto"
                   variant="outline"
                   disabled
                 >
@@ -235,8 +238,8 @@ export default function AIOpportunitySummary() {
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3 xl:min-w-130">
-            <div className="rounded-xl border bg-background/80 p-4">
+          <div className="grid min-w-0 gap-3 sm:grid-cols-3 xl:min-w-130">
+            <div className="min-w-0 rounded-xl border bg-background/80 p-4">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <ListChecks className="size-4" />
 
@@ -250,7 +253,7 @@ export default function AIOpportunitySummary() {
               </p>
             </div>
 
-            <div className="rounded-xl border bg-background/80 p-4">
+            <div className=" min-w-0 rounded-xl border bg-background/80 p-4">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <AlertTriangle className="size-4" />
 
@@ -264,7 +267,7 @@ export default function AIOpportunitySummary() {
               </p>
             </div>
 
-            <div className="rounded-xl border bg-background/80 p-4">
+            <div className="min-w-0 rounded-xl border bg-background/80 p-4">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <HeartPulse className="size-4" />
 

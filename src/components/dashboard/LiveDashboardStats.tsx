@@ -11,14 +11,12 @@ import {
 import StatCard from "@/components/dashboard/StatCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListings } from "@/hooks/useListings";
-import {
-  analyzeListing,
-  calculateAverageScore,
-} from "@/lib/scoring/analyzeListing";
+import { calculateAverageScore } from "@/lib/scoring/analyzeListing";
 
 export default function LiveDashboardStats() {
   const {
     listings,
+    analyzedListings,
     totalAvailable,
     isLoading,
     error,
@@ -30,9 +28,9 @@ export default function LiveDashboardStats() {
         listing.status.toLowerCase() === "active",
     ).length;
 
-    const listingScores = listings.map(
-      (listing) =>
-        analyzeListing(listing).scores.overall,
+    const listingScores = analyzedListings.map(
+      ({ analysis }) =>
+        analysis.scores.overall,
     );
 
     return {
@@ -46,11 +44,15 @@ export default function LiveDashboardStats() {
           (score) => score < 70,
         ).length,
     };
-  }, [listings, totalAvailable]);
+  }, [
+    listings,
+    analyzedListings,
+    totalAvailable,
+  ]);
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         {Array.from({ length: 4 }).map(
           (_, index) => (
             <Skeleton
@@ -65,7 +67,7 @@ export default function LiveDashboardStats() {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      <div className="min-w-0 wrap-break-words rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
         Dashboard statistics could not be loaded:{" "}
         {error}
       </div>
@@ -108,7 +110,7 @@ export default function LiveDashboardStats() {
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
       {stats.map((stat) => (
         <StatCard
           key={stat.title}

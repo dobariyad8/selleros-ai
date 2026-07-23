@@ -62,16 +62,12 @@ export default function ImagesPage() {
 
         return {
           id: String(listing.id),
-
           title:
             listing.title?.trim() ||
             "Untitled listing",
-
           imageCount,
-
           imageScore:
             analysis.scores.images,
-
           overallScore:
             analysis.scores.overall,
         };
@@ -193,14 +189,14 @@ export default function ImagesPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto w-full max-w-7xl">
-        <div className="space-y-3">
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="h-10 w-64" />
+      <div className="mx-auto w-full min-w-0 max-w-7xl px-3 sm:px-4 lg:px-0">
+        <div className="min-w-0 space-y-3">
+          <Skeleton className="h-4 w-40 max-w-full" />
+          <Skeleton className="h-10 w-64 max-w-full" />
           <Skeleton className="h-5 w-full max-w-2xl" />
         </div>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 sm:mt-6 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
           {Array.from({ length: 4 }).map(
             (_, index) => (
               <Skeleton
@@ -211,33 +207,33 @@ export default function ImagesPage() {
           )}
         </div>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 sm:mt-6 sm:gap-6 xl:grid-cols-2">
           <Skeleton className="h-80 rounded-xl" />
           <Skeleton className="h-80 rounded-xl" />
         </div>
 
-        <Skeleton className="mt-6 h-96 rounded-xl" />
+        <Skeleton className="mt-4 h-96 rounded-xl sm:mt-6" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="mx-auto w-full max-w-7xl">
-        <Card className="border-red-200">
-          <CardHeader>
-            <CardTitle className="text-red-700">
+      <div className="mx-auto w-full min-w-0 max-w-7xl px-3 sm:px-4 lg:px-0">
+        <Card className="min-w-0 border-red-200">
+          <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
+            <CardTitle className="wrap-break-words text-red-700">
               Image insights could not be loaded
             </CardTitle>
 
-            <CardDescription>
+            <CardDescription className="wrap-break-words">
               SellerOS could not analyze the image
               coverage of your listings.
             </CardDescription>
           </CardHeader>
 
-          <CardContent>
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+            <div className="min-w-0 wrap-break-words rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
               {error}
             </div>
           </CardContent>
@@ -248,38 +244,41 @@ export default function ImagesPage() {
 
   if (imageData.listingCount === 0) {
     return (
-      <div className="mx-auto w-full max-w-7xl">
-        <div>
+      <div className="mx-auto w-full min-w-0 max-w-7xl px-3 sm:px-4 lg:px-0">
+        <div className="min-w-0">
           <p className="text-sm text-muted-foreground">
             SellerOS Growth Tools
           </p>
 
-          <h1 className="mt-2 flex items-center gap-3 text-3xl font-bold tracking-tight">
-            <Images className="size-8" />
-            Image Insights
+          <h1 className="mt-2 flex min-w-0 items-start gap-2 wrap-break-words text-2xl font-bold tracking-tight sm:items-center sm:gap-3 sm:text-3xl">
+            <Images className="mt-0.5 size-6 shrink-0 sm:mt-0 sm:size-8" />
+
+            <span className="min-w-0">
+              Image Insights
+            </span>
           </h1>
         </div>
 
-        <Card className="mt-6">
-          <CardContent className="p-10 text-center">
-            <ImageIcon className="mx-auto size-10 text-muted-foreground" />
+        <Card className="mt-4 min-w-0 sm:mt-6">
+          <CardContent className="px-4 py-6 text-center sm:p-10">
+            <ImageIcon className="mx-auto size-9 text-muted-foreground sm:size-10" />
 
             <p className="mt-4 font-semibold">
               No listings available
             </p>
 
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-2 wrap-break-words text-sm text-muted-foreground">
               Connect Etsy listings before analyzing
               image coverage.
             </p>
 
             <Button
-              className="mt-5"
+              className="mt-5 w-full sm:w-auto"
               nativeButton={false}
               render={<Link href="/listings" />}
             >
               Open Listings
-              <ArrowRight className="size-4" />
+              <ArrowRight className="size-4 shrink-0" />
             </Button>
           </CardContent>
         </Card>
@@ -321,37 +320,43 @@ export default function ImagesPage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-7xl">
-      <div>
+    <div className="mx-auto w-full min-w-0 max-w-7xl px-3 sm:px-4 lg:px-0">
+      <div className="min-w-0">
         <p className="text-sm text-muted-foreground">
           SellerOS Growth Tools
         </p>
 
-        <h1 className="mt-2 flex items-center gap-3 text-3xl font-bold tracking-tight">
-          <Images className="size-8" />
-          Image Insights
+        <h1 className="mt-2 flex min-w-0 items-start gap-2 wrap-break-words text-2xl font-bold tracking-tight sm:items-center sm:gap-3 sm:text-3xl">
+          <Images className="mt-0.5 size-6 shrink-0 sm:mt-0 sm:size-8" />
+
+          <span className="min-w-0">
+            Image Insights
+          </span>
         </h1>
 
-        <p className="mt-2 max-w-2xl text-muted-foreground">
+        <p className="mt-2 max-w-2xl wrap-break-words text-sm leading-6 text-muted-foreground sm:text-base">
           Review image coverage across your connected
           Etsy listings and identify galleries that
           may need additional product views.
         </p>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 sm:mt-6 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         {summaryCards.map((item) => (
-          <Card key={item.title}>
-            <CardContent className="p-5">
-              <p className="text-sm text-muted-foreground">
+          <Card
+            key={item.title}
+            className="min-w-0"
+          >
+            <CardContent className="p-4 sm:p-5">
+              <p className="wrap-break-words text-sm text-muted-foreground">
                 {item.title}
               </p>
 
-              <p className="mt-2 text-3xl font-bold">
+              <p className="mt-2 wrap-break-words text-2xl font-bold sm:text-3xl">
                 {item.value}
               </p>
 
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="mt-2 wrap-break-words text-xs leading-5 text-muted-foreground">
                 {item.description}
               </p>
             </CardContent>
@@ -359,20 +364,20 @@ export default function ImagesPage() {
         ))}
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>
+      <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 sm:mt-6 sm:gap-6 xl:grid-cols-2">
+        <Card className="min-w-0">
+          <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
+            <CardTitle className="wrap-break-words text-base sm:text-lg">
               Gallery Distribution
             </CardTitle>
 
-            <CardDescription>
+            <CardDescription className="wrap-break-words">
               Listings grouped by the number of image
               URLs available.
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 px-4 pb-4 sm:px-6 sm:pb-6">
             {imageData.distribution.map(
               (item) => {
                 const percentage =
@@ -385,19 +390,22 @@ export default function ImagesPage() {
                     : 0;
 
                 return (
-                  <div key={item.name}>
-                    <div className="mb-2 flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-sm font-medium">
+                  <div
+                    key={item.name}
+                    className="min-w-0"
+                  >
+                    <div className="mb-2 flex min-w-0 items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="wrap-break-words text-sm font-medium">
                           {item.name}
                         </p>
 
-                        <p className="text-xs text-muted-foreground">
+                        <p className="wrap-break-words text-xs leading-5 text-muted-foreground">
                           {item.description}
                         </p>
                       </div>
 
-                      <div className="text-right">
+                      <div className="shrink-0 text-right">
                         <p className="font-semibold">
                           {item.count}
                         </p>
@@ -416,55 +424,55 @@ export default function ImagesPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>
+        <Card className="min-w-0">
+          <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
+            <CardTitle className="wrap-break-words text-base sm:text-lg">
               Image Coverage Summary
             </CardTitle>
 
-            <CardDescription>
+            <CardDescription className="wrap-break-words">
               Key gallery opportunities across your
               shop.
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between rounded-xl border p-4">
-              <div className="flex items-center gap-3">
-                <CameraOff className="size-5 text-red-600" />
+          <CardContent className="space-y-3 px-4 pb-4 sm:space-y-4 sm:px-6 sm:pb-6">
+            <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border p-3 sm:p-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <CameraOff className="mt-0.5 size-5 shrink-0 text-red-600" />
 
-                <div>
-                  <p className="font-medium">
+                <div className="min-w-0">
+                  <p className="wrap-break-words font-medium">
                     No images found
                   </p>
 
-                  <p className="text-sm text-muted-foreground">
+                  <p className="wrap-break-words text-sm text-muted-foreground">
                     Listings without image URLs
                   </p>
                 </div>
               </div>
 
-              <p className="text-2xl font-bold">
+              <p className="shrink-0 text-xl font-bold sm:text-2xl">
                 {imageData.noImageCount}
               </p>
             </div>
 
-            <div className="flex items-center justify-between rounded-xl border p-4">
-              <div className="flex items-center gap-3">
-                <TriangleAlert className="size-5 text-amber-600" />
+            <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border p-3 sm:p-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <TriangleAlert className="mt-0.5 size-5 shrink-0 text-amber-600" />
 
-                <div>
-                  <p className="font-medium">
+                <div className="min-w-0">
+                  <p className="wrap-break-words font-medium">
                     Need more coverage
                   </p>
 
-                  <p className="text-sm text-muted-foreground">
+                  <p className="wrap-break-words text-sm text-muted-foreground">
                     Listings with fewer than 7 images
                   </p>
                 </div>
               </div>
 
-              <p className="text-2xl font-bold">
+              <p className="shrink-0 text-xl font-bold sm:text-2xl">
                 {
                   imageData
                     .listingsNeedingImages.length
@@ -472,22 +480,22 @@ export default function ImagesPage() {
               </p>
             </div>
 
-            <div className="flex items-center justify-between rounded-xl border p-4">
-              <div className="flex items-center gap-3">
-                <CircleCheckBig className="size-5 text-emerald-600" />
+            <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border p-3 sm:p-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <CircleCheckBig className="mt-0.5 size-5 shrink-0 text-emerald-600" />
 
-                <div>
-                  <p className="font-medium">
+                <div className="min-w-0">
+                  <p className="wrap-break-words font-medium">
                     Strong galleries
                   </p>
 
-                  <p className="text-sm text-muted-foreground">
+                  <p className="wrap-break-words text-sm text-muted-foreground">
                     Listings with at least 7 images
                   </p>
                 </div>
               </div>
 
-              <p className="text-2xl font-bold">
+              <p className="shrink-0 text-xl font-bold sm:text-2xl">
                 {imageData.strongGalleryCount}
               </p>
             </div>
@@ -495,30 +503,33 @@ export default function ImagesPage() {
         </Card>
       </div>
 
-      <Card className="mt-6">
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <CardTitle>
+      <Card className="mt-4 min-w-0 sm:mt-6">
+        <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <CardTitle className="wrap-break-words text-base sm:text-lg">
                 Listings Needing More Images
               </CardTitle>
 
-              <CardDescription className="mt-1">
+              <CardDescription className="mt-1 wrap-break-words">
                 Up to 10 listings with the fewest
                 images appear first.
               </CardDescription>
             </div>
 
-            <Badge variant="outline">
+            <Badge
+              variant="outline"
+              className="w-fit shrink-0"
+            >
               Top 10
             </Badge>
           </div>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
           {imageData.listingsNeedingImages.length >
           0 ? (
-            <div className="space-y-3">
+            <div className="min-w-0 space-y-3">
               {imageData.listingsNeedingImages.map(
                 (listing) => {
                   const status =
@@ -529,18 +540,18 @@ export default function ImagesPage() {
                   return (
                     <div
                       key={listing.id}
-                      className="flex flex-col gap-4 rounded-xl border p-4 lg:flex-row lg:items-center"
+                      className="flex min-w-0 flex-col gap-3 rounded-xl border p-3 sm:gap-4 sm:p-4 lg:flex-row lg:items-center"
                     >
                       <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-muted">
                         <ImageIcon className="size-5" />
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <p className="line-clamp-2 font-medium">
+                        <p className="line-clamp-2 wrap-break-words font-medium">
                           {listing.title}
                         </p>
 
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-1 wrap-break-words text-sm text-muted-foreground">
                           {listing.imageCount}{" "}
                           {listing.imageCount === 1
                             ? "image"
@@ -549,14 +560,15 @@ export default function ImagesPage() {
                         </p>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
                         <Badge
                           variant={status.variant}
+                          className="w-fit shrink-0"
                         >
                           {status.label}
                         </Badge>
 
-                        <span className="text-sm font-semibold">
+                        <span className="wrap-break-words text-sm font-semibold">
                           Image score:{" "}
                           {listing.imageScore}/100
                         </span>
@@ -564,6 +576,7 @@ export default function ImagesPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          className="w-full shrink-0 sm:w-auto"
                           nativeButton={false}
                           render={
                             <Link
@@ -572,7 +585,7 @@ export default function ImagesPage() {
                           }
                         >
                           Open Audit
-                          <ArrowRight className="size-4" />
+                          <ArrowRight className="size-4 shrink-0" />
                         </Button>
                       </div>
                     </div>
@@ -581,21 +594,21 @@ export default function ImagesPage() {
               )}
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed p-8 text-center">
+            <div className="rounded-xl border border-dashed p-5 text-center sm:p-8">
               <CircleCheckBig className="mx-auto size-9 text-emerald-600" />
 
-              <p className="mt-3 font-medium">
+              <p className="mt-3 wrap-break-words font-medium">
                 Every listing has a strong gallery
               </p>
 
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 wrap-break-words text-sm text-muted-foreground">
                 All connected listings currently have
                 at least seven image URLs.
               </p>
             </div>
           )}
 
-          <p className="mt-4 text-xs text-muted-foreground">
+          <p className="mt-4 wrap-break-words text-xs leading-5 text-muted-foreground">
             Image insights are based only on the number
             of image URLs available. SellerOS is not
             currently measuring brightness, sharpness,

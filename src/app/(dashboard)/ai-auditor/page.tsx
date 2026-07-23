@@ -64,14 +64,14 @@ export default function AIAuditorPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto w-full max-w-7xl">
-        <div className="space-y-3">
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="h-10 w-72" />
+      <div className="mx-auto w-full min-w-0 max-w-7xl px-3 sm:px-4 lg:px-0">
+        <div className="min-w-0 space-y-3">
+          <Skeleton className="h-4 w-40 max-w-full" />
+          <Skeleton className="h-10 w-72 max-w-full" />
           <Skeleton className="h-5 w-full max-w-2xl" />
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 sm:mt-6 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
           {Array.from({ length: 6 }).map(
             (_, index) => (
               <Skeleton
@@ -87,21 +87,21 @@ export default function AIAuditorPage() {
 
   if (error) {
     return (
-      <div className="mx-auto w-full max-w-7xl">
-        <Card className="border-red-200">
-          <CardHeader>
-            <CardTitle className="text-red-700">
+      <div className="mx-auto w-full min-w-0 max-w-7xl px-3 sm:px-4 lg:px-0">
+        <Card className="min-w-0 border-red-200">
+          <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
+            <CardTitle className="wrap-break-words text-red-700">
               Listings could not be loaded
             </CardTitle>
 
-            <CardDescription>
+            <CardDescription className="wrap-break-words">
               SellerOS could not prepare the AI
               auditor.
             </CardDescription>
           </CardHeader>
 
-          <CardContent>
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+            <div className="min-w-0 wrap-break-words rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
               {error}
             </div>
           </CardContent>
@@ -111,18 +111,20 @@ export default function AIAuditorPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl">
-      <div>
+    <div className="mx-auto w-full min-w-0 max-w-7xl px-3 sm:px-4 lg:px-0">
+      <div className="min-w-0">
         <p className="text-sm text-muted-foreground">
           SellerOS Growth Tools
         </p>
 
-        <h1 className="mt-2 flex items-center gap-3 text-3xl font-bold tracking-tight">
-          <FileSearch className="size-8" />
-          AI Listing Auditor
+        <h1 className="mt-2 flex min-w-0 items-start gap-2 wrap-break-words text-2xl font-bold tracking-tight sm:items-center sm:gap-3 sm:text-3xl">
+          <FileSearch className="mt-0.5 size-6 shrink-0 sm:mt-0 sm:size-8" />
+          <span className="min-w-0">
+            AI Listing Auditor
+          </span>
         </h1>
 
-        <p className="mt-2 max-w-2xl text-muted-foreground">
+        <p className="mt-2 max-w-2xl wrap-break-words text-sm leading-6 text-muted-foreground sm:text-base">
           Select a listing to review its title, tags,
           description, images, pricing, recommendations,
           and AI optimization tools.
@@ -130,16 +132,19 @@ export default function AIAuditorPage() {
       </div>
 
       {sortedListings.length > 0 ? (
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 sm:mt-6 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
           {sortedListings.map(
             ({ listing, analysis }) => (
               <Card
                 key={listing.id}
-                className="flex h-full flex-col transition-shadow hover:shadow-md"
+                className="flex h-full min-w-0 flex-col transition-shadow hover:shadow-md"
               >
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-3">
-                    <Badge variant="outline">
+                <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
+                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                    <Badge
+                      variant="outline"
+                      className="w-fit max-w-full shrink-0 whitespace-normal wrap-break-words"
+                    >
                       {listing.status}
                     </Badge>
 
@@ -147,6 +152,7 @@ export default function AIAuditorPage() {
                       variant={getScoreVariant(
                         analysis.scores.overall,
                       )}
+                      className="w-fit max-w-full shrink-0 whitespace-normal wrap-break-words"
                     >
                       {getScoreLabel(
                         analysis.scores.overall,
@@ -154,24 +160,24 @@ export default function AIAuditorPage() {
                     </Badge>
                   </div>
 
-                  <CardTitle className="line-clamp-2 pt-2 text-lg">
+                  <CardTitle className="line-clamp-2 wrap-break-words pt-2 text-base sm:text-lg">
                     {listing.title?.trim() ||
                       "Untitled listing"}
                   </CardTitle>
 
-                  <CardDescription>
+                  <CardDescription className="break-all">
                     Listing ID: {listing.id}
                   </CardDescription>
                 </CardHeader>
 
-                <CardContent className="flex flex-1 flex-col">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-lg border bg-muted/30 p-3">
+                <CardContent className="flex min-w-0 flex-1 flex-col px-4 pb-4 sm:px-6 sm:pb-6">
+                  <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="min-w-0 rounded-lg border bg-muted/30 p-3">
                       <p className="text-xs text-muted-foreground">
                         Overall score
                       </p>
 
-                      <p className="mt-1 text-2xl font-bold">
+                      <p className="mt-1 wrap-break-words text-xl font-bold sm:text-2xl">
                         {analysis.scores.overall}
                         <span className="text-sm font-normal text-muted-foreground">
                           /100
@@ -179,19 +185,19 @@ export default function AIAuditorPage() {
                       </p>
                     </div>
 
-                    <div className="rounded-lg border bg-muted/30 p-3">
+                    <div className="min-w-0 rounded-lg border bg-muted/30 p-3">
                       <p className="text-xs text-muted-foreground">
                         Weakest area
                       </p>
 
-                      <p className="mt-1 font-semibold">
+                      <p className="mt-1 wrap-break-words font-semibold">
                         {
                           analysis.weakestCategory
                             .category
                         }
                       </p>
 
-                      <p className="text-sm text-muted-foreground">
+                      <p className="wrap-break-words text-sm text-muted-foreground">
                         {
                           analysis.weakestCategory
                             .score
@@ -202,7 +208,7 @@ export default function AIAuditorPage() {
                   </div>
 
                   <Button
-                    className="mt-5 w-full"
+                    className="mt-4 w-full sm:mt-5"
                     nativeButton={false}
                     render={
                       <Link
@@ -211,7 +217,7 @@ export default function AIAuditorPage() {
                     }
                   >
                     Open AI Audit
-                    <ArrowRight className="size-4" />
+                    <ArrowRight className="size-4 shrink-0" />
                   </Button>
                 </CardContent>
               </Card>
@@ -219,26 +225,26 @@ export default function AIAuditorPage() {
           )}
         </div>
       ) : (
-        <Card className="mt-6">
-          <CardContent className="p-10 text-center">
-            <SearchCheck className="mx-auto size-10 text-muted-foreground" />
+        <Card className="mt-4 min-w-0 sm:mt-6">
+          <CardContent className="px-4 py-6 text-center sm:p-10">
+            <SearchCheck className="mx-auto size-9 text-muted-foreground sm:size-10" />
 
             <p className="mt-4 font-semibold">
               No listings available
             </p>
 
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-2 wrap-break-words text-sm text-muted-foreground">
               Connect Etsy listings before opening the
               AI auditor.
             </p>
 
             <Button
-              className="mt-5"
+              className="mt-5 w-full sm:w-auto"
               nativeButton={false}
               render={<Link href="/listings" />}
             >
               Open Listings
-              <ArrowRight className="size-4" />
+              <ArrowRight className="size-4 shrink-0" />
             </Button>
           </CardContent>
         </Card>

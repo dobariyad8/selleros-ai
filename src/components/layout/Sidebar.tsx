@@ -13,22 +13,22 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden h-screen w-64 shrink-0 flex-col border-r bg-card lg:flex">
-      <div className="flex h-16 items-center border-b px-6">
+    <aside className="hidden h-screen w-64 min-w-0 shrink-0 flex-col overflow-hidden border-r bg-card lg:flex">
+      <div className="flex h-16 min-w-0 shrink-0 items-center border-b px-5 xl:px-6">
         <Link
           href="/dashboard"
-          className="flex items-center gap-2 rounded-lg outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-primary"
+          className="flex min-w-0 items-center gap-2 rounded-lg outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-primary"
         >
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Sparkles className="size-5" />
           </div>
 
-          <div>
-            <p className="font-semibold">
+          <div className="min-w-0">
+            <p className="truncate font-semibold">
               SellerOS AI
             </p>
 
-            <p className="text-xs text-muted-foreground">
+            <p className="truncate text-xs text-muted-foreground">
               Etsy Growth Assistant
             </p>
           </div>
@@ -36,10 +36,10 @@ export default function Sidebar() {
       </div>
 
       <nav
-        className="flex-1 overflow-y-auto p-3"
+        className="min-w-0 flex-1 overflow-y-auto overscroll-contain p-3"
         aria-label="Main navigation"
       >
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           {navigationItems.map((item) => {
             const Icon = item.icon;
 
@@ -56,7 +56,7 @@ export default function Sidebar() {
                 aria-current={
                   isActive ? "page" : undefined
                 }
-                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex min-w-0 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                   isActive
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -64,7 +64,9 @@ export default function Sidebar() {
               >
                 <Icon className="size-4 shrink-0" />
 
-                <span>{item.name}</span>
+                <span className="min-w-0 truncate">
+                  {item.name}
+                </span>
               </Link>
             );
           })}
