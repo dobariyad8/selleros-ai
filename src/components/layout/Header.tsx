@@ -1,8 +1,14 @@
+"use client";
+
+import type { FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import {
   Bell,
   ChevronDown,
   Search,
 } from "lucide-react";
+
+import { useListings } from "@/hooks/useListings";
 
 import {
   Avatar,
@@ -22,19 +28,54 @@ import { Input } from "@/components/ui/input";
 import MobileSidebar from "./MobileSidebar";
 
 export default function Header() {
+  const router = useRouter();
+
+  const {
+    searchQuery,
+    setSearchQuery,
+  } = useListings();
+
+  function handleSearchSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    router.push("/listings");
+  }
+
   return (
     <header className="flex h-16 min-w-0 shrink-0 items-center justify-between border-b bg-background px-3 sm:px-4 lg:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
         <MobileSidebar />
 
-        <div className="relative hidden min-w-0 w-full max-w-sm md:block">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <form
+          onSubmit={handleSearchSubmit}
+          className="relative hidden min-w-0 w-full max-w-sm md:block"
+          role="search"
+        >
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 
           <Input
+            type="search"
+            aria-label="Search Etsy listings"
             placeholder="Search listings..."
-            className="w-full pl-9"
+            value={searchQuery}
+            onChange={(event) => {
+              setSearchQuery(
+                event.target.value,
+              );
+            }}
+            className="w-full pl-9 pr-16"
           />
-        </div>
+
+          <Button
+            type="submit"
+            variant="ghost"
+            size="sm"
+            className="absolute right-1 top-1/2 h-7 -translate-y-1/2 px-2 text-xs"
+          >
+            Search
+          </Button>
+        </form>
       </div>
 
       <div className="ml-2 flex shrink-0 items-center gap-1 sm:gap-2">
@@ -93,7 +134,11 @@ export default function Header() {
               Subscription
             </DropdownMenuItem>
 
-            <DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                router.push("/settings");
+              }}
+            >
               Settings
             </DropdownMenuItem>
 

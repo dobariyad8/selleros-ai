@@ -6,7 +6,9 @@ import {
   useEffect,
   useMemo,
   useState,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from "react";
 
 import type {
@@ -42,6 +44,10 @@ export type ListingsContextValue = {
   isLoading: boolean;
   isRefreshing: boolean;
   error: string | null;
+  searchQuery: string;
+  setSearchQuery: Dispatch<
+    SetStateAction<string>
+  >;
   refreshListings: () => Promise<void>;
 };
 
@@ -76,6 +82,9 @@ export function ListingsProvider({
 
   const [error, setError] =
     useState<string | null>(null);
+
+  const [searchQuery, setSearchQuery] =
+    useState("");
 
   const analyzedListings =
     useMemo<AnalyzedListing[]>(
@@ -169,6 +178,8 @@ export function ListingsProvider({
         isLoading,
         isRefreshing,
         error,
+        searchQuery,
+        setSearchQuery,
         refreshListings,
       }),
       [
@@ -180,6 +191,7 @@ export function ListingsProvider({
         isLoading,
         isRefreshing,
         error,
+        searchQuery,
         refreshListings,
       ],
     );

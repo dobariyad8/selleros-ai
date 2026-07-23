@@ -1,6 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   ImageIcon,
@@ -36,23 +39,27 @@ export default function ListingsTable() {
     isLoading,
     isRefreshing,
     error,
+    searchQuery,
+    setSearchQuery,
     refreshListings,
   } = useListings();
 
   const router = useRouter();
 
-  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] =
     useState("all");
+
   const [sortBy, setSortBy] =
     useState("title-asc");
+
   const [currentPage, setCurrentPage] =
     useState(1);
 
   const listingsPerPage = 10;
 
   const filteredListings = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query =
+      searchQuery.trim().toLowerCase();
 
     const filtered = listings.filter(
       (listing) => {
@@ -63,6 +70,9 @@ export default function ListingsTable() {
             .includes(query) ||
           listing.tags.some((tag) =>
             tag.toLowerCase().includes(query),
+          ) ||
+          String(listing.listingId).includes(
+            query,
           );
 
         const matchesStatus =
@@ -91,7 +101,7 @@ export default function ListingsTable() {
     });
   }, [
     listings,
-    search,
+    searchQuery,
     statusFilter,
     sortBy,
   ]);
@@ -104,25 +114,31 @@ export default function ListingsTable() {
     ),
   );
 
+  const safeCurrentPage = Math.min(
+  currentPage,
+  totalPages,
+);
+
   const paginatedListings = useMemo(() => {
-    const startIndex =
-      (currentPage - 1) * listingsPerPage;
+  const startIndex =
+  (safeCurrentPage - 1) *
+  listingsPerPage;
 
     return filteredListings.slice(
       startIndex,
       startIndex + listingsPerPage,
     );
-  }, [filteredListings, currentPage]);
+  }, [filteredListings, safeCurrentPage]);
 
   const startListing =
     filteredListings.length === 0
       ? 0
-      : (currentPage - 1) *
+      : (safeCurrentPage - 1) *
           listingsPerPage +
         1;
 
   const endListing = Math.min(
-    currentPage * listingsPerPage,
+    safeCurrentPage * listingsPerPage,
     filteredListings.length,
   );
 
@@ -221,11 +237,13 @@ export default function ListingsTable() {
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 
             <input
-              type="text"
-              placeholder="Search listings..."
-              value={search}
+              type="search"
+              placeholder="Search titles, tags, or listing IDs..."
+              value={searchQuery}
               onChange={(event) => {
-                setSearch(event.target.value);
+                setSearchQuery(
+                  event.target.value,
+                );
                 setCurrentPage(1);
               }}
               className="w-full min-w-0 rounded-md border bg-background py-2 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary"
@@ -520,7 +538,7 @@ export default function ListingsTable() {
 
       <div className="flex flex-col gap-3 border-t p-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p className="text-sm text-muted-foreground">
-          Page {currentPage} of {totalPages}
+          Page {safeCurrentPage} of {totalPages}
         </p>
 
         <div className="grid grid-cols-2 gap-2 sm:flex">
@@ -529,7 +547,7 @@ export default function ListingsTable() {
             variant="outline"
             size="sm"
             className="w-full sm:w-auto"
-            disabled={currentPage === 1}
+            disabled={safeCurrentPage === 1}
             onClick={() =>
               setCurrentPage((page) =>
                 Math.max(1, page - 1),
@@ -545,7 +563,7 @@ export default function ListingsTable() {
             size="sm"
             className="w-full sm:w-auto"
             disabled={
-              currentPage === totalPages ||
+              safeCurrentPage === totalPages ||
               filteredListings.length === 0
             }
             onClick={() =>
