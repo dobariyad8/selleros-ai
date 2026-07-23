@@ -7,6 +7,18 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  AlertTriangle,
   Bell,
   ChevronDown,
   CreditCard,
@@ -67,6 +79,11 @@ export default function Header() {
   const [isMobileSearchOpen, setIsMobileSearchOpen] =
     useState(false);
 
+  const [
+    isDisconnectDialogOpen,
+    setIsDisconnectDialogOpen,
+  ] = useState(false);
+
   const {
     analyzedListings,
     shop,
@@ -125,6 +142,8 @@ export default function Header() {
   }
 
   function disconnectEtsyShop() {
+    setIsDisconnectDialogOpen(false);
+
     const form = document.createElement("form");
 
     form.method = "POST";
@@ -309,17 +328,18 @@ export default function Header() {
                   ),
                 )
               ) : (
-                <DropdownMenuItem disabled>
-                  <div className="py-2">
-                    <p className="font-medium">
-                      No urgent issues
-                    </p>
-
-                    <p className="mt-1 text-xs font-normal text-muted-foreground">
-                      No listings currently score
-                      below 70.
-                    </p>
-                  </div>
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={!shop}
+                  onClick={() => {
+                    setIsDisconnectDialogOpen(true);
+                  }}
+                >
+                  <Unplug className="size-4" />
+                
+                  {shop
+                    ? "Disconnect Etsy Shop"
+                    : "No Etsy Shop Connected"}
                 </DropdownMenuItem>
               )}
             </DropdownMenuGroup>
@@ -436,10 +456,14 @@ export default function Header() {
               <DropdownMenuItem
                 variant="destructive"
                 disabled={!shop}
-                onClick={disconnectEtsyShop}
+                onClick={() => {
+                  window.setTimeout(() => {
+                    setIsDisconnectDialogOpen(true);
+                  }, 0);
+                }}
               >
                 <Unplug className="size-4" />
-
+              
                 {shop
                   ? "Disconnect Etsy Shop"
                   : "No Etsy Shop Connected"}
@@ -448,6 +472,53 @@ export default function Header() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+        <AlertDialog
+          open={isDisconnectDialogOpen}
+          onOpenChange={setIsDisconnectDialogOpen}
+        >
+          <AlertDialogContent className="max-w-[calc(100vw-2rem)]">
+            <AlertDialogHeader>
+              <AlertDialogMedia className="bg-red-50 text-red-600">
+                <AlertTriangle className="size-8" />
+              </AlertDialogMedia>
+
+              <AlertDialogTitle>
+                Disconnect Etsy shop?
+              </AlertDialogTitle>
+
+              <AlertDialogDescription>
+                SellerOS will remove the Etsy access and refresh
+                tokens stored in this browser. Your Etsy shop
+                and listings will not be deleted from Etsy.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <div className="rounded-xl border bg-muted/30 p-4">
+              <p className="text-xs text-muted-foreground">
+                Connected shop
+              </p>
+
+              <p className="mt-1 wrap-break-words font-semibold">
+                {shopName}
+              </p>
+            </div>
+
+            <AlertDialogFooter>
+              <AlertDialogCancel>
+                Keep Connected
+              </AlertDialogCancel>
+
+              <AlertDialogAction
+                variant="destructive"
+                onClick={disconnectEtsyShop}
+              >
+                <Unplug className="size-4" />
+                Disconnect Shop
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      
     </header>
   );
 }
