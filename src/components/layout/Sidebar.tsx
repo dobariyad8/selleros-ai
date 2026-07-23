@@ -13,7 +13,7 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-screen w-64 shrink-0 flex-col border-r bg-card">
+    <aside className="hidden h-screen w-64 shrink-0 flex-col border-r bg-card lg:flex">
       <div className="flex h-16 items-center border-b px-6">
         <Link
           href="/dashboard"
