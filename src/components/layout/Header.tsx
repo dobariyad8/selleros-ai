@@ -20,6 +20,7 @@ import {
 import {
   AlertTriangle,
   Bell,
+  CheckCheck,
   ChevronDown,
   CreditCard,
   Search,
@@ -27,6 +28,7 @@ import {
   Store,
   TriangleAlert,
   Unplug,
+  X,
 } from "lucide-react";
 
 import { useListings } from "@/hooks/useListings";
@@ -84,6 +86,11 @@ export default function Header() {
     setIsDisconnectDialogOpen,
   ] = useState(false);
 
+  const [
+    dismissedNotificationIds,
+    setDismissedNotificationIds,
+  ] = useState<string[]>([]);
+
   const {
     analyzedListings,
     shop,
@@ -100,7 +107,7 @@ export default function Header() {
     ? "Connected Etsy shop"
     : "No shop connected";
 
-  const notifications = useMemo(
+  const urgentNotifications = useMemo(
     () =>
       [...analyzedListings]
         .filter(
@@ -111,16 +118,29 @@ export default function Header() {
           (first, second) =>
             first.analysis.scores.overall -
             second.analysis.scores.overall,
-        )
-        .slice(0, 5),
+        ),
     [analyzedListings],
   );
 
+  const visibleNotifications = useMemo(
+    () =>
+      urgentNotifications.filter(
+        ({ listing }) =>
+          !dismissedNotificationIds.includes(
+            String(listing.id),
+          ),
+      ),
+    [
+      urgentNotifications,
+      dismissedNotificationIds,
+    ],
+  );
+
+  const notifications =
+    visibleNotifications.slice(0, 5);
+
   const notificationCount =
-    analyzedListings.filter(
-      ({ analysis }) =>
-        analysis.scores.overall < 70,
-    ).length;
+    visibleNotifications.length;
 
   function openListingSearch() {
     setIsMobileSearchOpen(false);
@@ -139,6 +159,34 @@ export default function Header() {
   ) {
     event.preventDefault();
     openListingSearch();
+  }
+
+  function dismissNotification(
+    listingId: string,
+  ) {
+    setDismissedNotificationIds(
+      (currentIds) =>
+        currentIds.includes(listingId)
+          ? currentIds
+          : [...currentIds, listingId],
+    );
+  }
+
+  function markAllNotificationsRead() {
+    setDismissedNotificationIds(
+      urgentNotifications.map(
+        ({ listing }) =>
+          String(listing.id),
+      ),
+    );
+  }
+
+  function openNotification(
+    listingId: string,
+  ) {
+    dismissNotification(listingId);
+
+    router.push(`/audit/${listingId}`);
   }
 
   function disconnectEtsyShop() {
@@ -285,69 +333,120 @@ export default function Header() {
             )}
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent
+         <DropdownMenuContent
             align="end"
             className="w-80 max-w-[calc(100vw-1rem)]"
           >
             <DropdownMenuGroup>
               <DropdownMenuLabel>
-                Notifications
-              </DropdownMenuLabel>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-foreground">
+                      Notifications
+                    </p>
 
-              {notifications.length > 0 ? (
-                notifications.map(
-                  ({ listing, analysis }) => (
-                    <DropdownMenuItem
-                      key={listing.id}
-                      className="items-start"
-                      onClick={() => {
-                        router.push(
-                          `/audit/${listing.id}`,
-                        );
+                    <p className="mt-0.5 text-xs font-normal text-muted-foreground">
+                      {notificationCount > 0
+                        ? `${notificationCount} listings need attention`
+                        : "You are all caught up"}
+                    </p>
+                  </div>
+                      
+                  {notificationCount > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 shrink-0 px-2 text-xs"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        markAllNotificationsRead();
                       }}
                     >
-                      <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" />
-
-                      <div className="min-w-0 flex-1">
-                        <p className="line-clamp-2 wrap-break-words">
-                          {listing.title?.trim() ||
-                            "Untitled listing"}
-                        </p>
-
-                        <p className="mt-1 text-xs font-normal text-muted-foreground">
-                          Score:{" "}
-                          {analysis.scores.overall}
-                          /100 · Weakest:{" "}
-                          {
-                            analysis.weakestCategory
-                              .category
-                          }
-                        </p>
-                      </div>
-                    </DropdownMenuItem>
-                  ),
+                      <CheckCheck className="size-3.5" />
+                      Mark all read
+                    </Button>
+                  )}
+                </div>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
+                
+            <DropdownMenuSeparator />
+                
+            <DropdownMenuGroup>
+              {notifications.length > 0 ? (
+                notifications.map(
+                  ({ listing, analysis }) => {
+                    const listingId =
+                      String(listing.id);
+                  
+                    return (
+                      <DropdownMenuItem
+                        key={listingId}
+                        className="items-start"
+                        onClick={() => {
+                          openNotification(listingId);
+                        }}
+                      >
+                        <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                      
+                        <div className="min-w-0 flex-1">
+                          <p className="line-clamp-2 wrap-break-words">
+                            {listing.title?.trim() ||
+                              "Untitled listing"}
+                          </p>
+                            
+                          <p className="mt-1 text-xs font-normal text-muted-foreground">
+                            Score:{" "}
+                            {analysis.scores.overall}
+                            /100 · Weakest:{" "}
+                            {
+                              analysis.weakestCategory
+                                .category
+                            }
+                          </p>
+                        </div>
+                          
+                        <button
+                          type="button"
+                          aria-label="Dismiss notification"
+                          className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                          
+                            dismissNotification(
+                              listingId,
+                            );
+                          }}
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </DropdownMenuItem>
+                    );
+                  },
                 )
               ) : (
-                <DropdownMenuItem
-                  variant="destructive"
-                  disabled={!shop}
-                  onClick={() => {
-                    setIsDisconnectDialogOpen(true);
-                  }}
-                >
-                  <Unplug className="size-4" />
-                
-                  {shop
-                    ? "Disconnect Etsy Shop"
-                    : "No Etsy Shop Connected"}
+                <DropdownMenuItem disabled>
+                  <div className="py-2">
+                    <p className="font-medium">
+                      No unread notifications
+                    </p>
+              
+                    <p className="mt-1 text-xs font-normal text-muted-foreground">
+                      Reviewed notifications are hidden until
+                      the page is refreshed.
+                    </p>
+                  </div>
                 </DropdownMenuItem>
               )}
             </DropdownMenuGroup>
-
-            {notificationCount > 0 && (
+            
+            {urgentNotifications.length > 0 && (
               <>
                 <DropdownMenuSeparator />
-
+            
                 <DropdownMenuGroup>
                   <DropdownMenuItem
                     onClick={() => {
