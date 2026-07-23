@@ -1,6 +1,10 @@
 "use client";
 
-import { useMemo, type FormEvent } from "react";
+import {
+  useMemo,
+  useState,
+  type FormEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -26,11 +30,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 import MobileSidebar from "./MobileSidebar";
 
 export default function Header() {
   const router = useRouter();
+
+  const [isMobileSearchOpen, setIsMobileSearchOpen] =
+    useState(false);
 
   const {
     analyzedListings,
@@ -60,11 +74,23 @@ export default function Header() {
         analysis.scores.overall < 70,
     ).length;
 
-  function handleSearchSubmit(
+  function openListingSearch() {
+    setIsMobileSearchOpen(false);
+    router.push("/listings");
+  }
+
+  function handleDesktopSearchSubmit(
     event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
     router.push("/listings");
+  }
+
+  function handleMobileSearchSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    openListingSearch();
   }
 
   return (
@@ -73,7 +99,7 @@ export default function Header() {
         <MobileSidebar />
 
         <form
-          onSubmit={handleSearchSubmit}
+          onSubmit={handleDesktopSearchSubmit}
           className="relative hidden min-w-0 w-full max-w-sm md:block"
           role="search"
         >
@@ -104,6 +130,76 @@ export default function Header() {
       </div>
 
       <div className="ml-2 flex shrink-0 items-center gap-1 sm:gap-2">
+        <Sheet
+          open={isMobileSearchOpen}
+          onOpenChange={setIsMobileSearchOpen}
+        >
+          <SheetTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0 md:hidden"
+                aria-label="Search listings"
+              >
+                <Search className="size-5" />
+              </Button>
+            }
+          />
+
+          <SheetContent
+            side="top"
+            className="min-w-0 p-0"
+          >
+            <SheetHeader className="border-b px-4 py-4">
+              <SheetTitle>
+                Search Etsy Listings
+              </SheetTitle>
+            </SheetHeader>
+
+            <form
+              onSubmit={handleMobileSearchSubmit}
+              className="min-w-0 p-4"
+              role="search"
+            >
+              <div className="relative min-w-0">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+
+                <Input
+                  type="search"
+                  autoFocus
+                  aria-label="Search Etsy listings"
+                  placeholder="Search titles, tags, or listing IDs..."
+                  value={searchQuery}
+                  onChange={(event) => {
+                    setSearchQuery(
+                      event.target.value,
+                    );
+                  }}
+                  className="w-full pl-9"
+                />
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setSearchQuery("");
+                  }}
+                  disabled={searchQuery.length === 0}
+                >
+                  Clear
+                </Button>
+
+                <Button type="submit">
+                  Search
+                </Button>
+              </div>
+            </form>
+          </SheetContent>
+        </Sheet>
+
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
