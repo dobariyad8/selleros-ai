@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(
       new URL(
         "/settings?etsy=connected",
-        request.url,
+        serverEnv.etsyRedirectUri,
       ),
     );
 
