@@ -290,7 +290,7 @@ export default function Header() {
                       <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" />
 
                       <div className="min-w-0 flex-1">
-                        <p className="line-clamp-2 break-words">
+                        <p className="line-clamp-2 wrap-break-words">
                           {listing.title?.trim() ||
                             "Untitled listing"}
                         </p>
