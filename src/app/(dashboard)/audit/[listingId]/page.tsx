@@ -1,18 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useState, useRef,} from "react";
+import {
+  useParams,
+  useSearchParams,
+} from "next/navigation";
 
 import { useListings } from "@/hooks/useListings";
 
 import AuditScoreCard from "@/components/ai/AuditScoreCard";
 import OpportunityCard from "@/components/ai/OpportunityCard";
 import AnalysisSection from "@/components/ai/AnalysisSection";
-import AIRewriteCard from "@/components/ai/AIRewriteCard";
-import AIDescriptionRewriteCard from "@/components/ai/AIDescriptionReWriteCard";
-import AITagGeneratorCard from "@/components/ai/AITagGeneratorCard";
-import AIOptimizeListingCard from "@/components/ai/AIOptimizeListingCard";
-import CompleteOptimizationCard from "@/components/ai/CompleteOptimizationCard";
 import OptimizationImpactCard from "@/components/ai/OptimizationImpactCard";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -22,6 +20,8 @@ import { calculateDescriptionScore } from "@/lib/scoring/descriptionScore";
 import { calculateImageScore } from "@/lib/scoring/imageScore";
 import { calculatePricingScore } from "@/lib/scoring/pricingScore";
 import { calculateOverallScore } from "@/lib/scoring/overallScore";
+import ListingPreviewCard from "@/components/ai/ListingPreviewCard";
+import OptimizationTabs from "@/components/ai/OptimizationTabs";
 
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,20 @@ export default function AuditPage() {
   const params = useParams<{
     listingId: string;
   }>();
+
+  const searchParams = useSearchParams();
+
+  const focus =
+    searchParams.get("focus");
+
+  const titleCardRef =
+  useRef<HTMLDivElement>(null);
+
+const descriptionCardRef =
+  useRef<HTMLDivElement>(null);
+
+const tagsCardRef =
+  useRef<HTMLDivElement>(null);
 
   const {
     listings,
@@ -146,6 +160,50 @@ export default function AuditPage() {
     suggestedTags,
   ]);
 
+  useEffect(() => {
+    if (!focus) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      if (
+        focus === "title" &&
+        titleCardRef.current
+      ) {
+        titleCardRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
+
+      if (
+        focus === "description" &&
+        descriptionCardRef.current
+      ) {
+        descriptionCardRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
+
+      if (
+        focus === "tags" &&
+        tagsCardRef.current
+      ) {
+        tagsCardRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [
+    focus,
+  ]);
+
   function handleOptimizationComplete(
     optimizedListing: OptimizedListing,
   ) {
@@ -237,7 +295,7 @@ export default function AuditPage() {
             Listing not found
           </h1>
 
-          <p className="mt-2 break-words text-sm text-muted-foreground">
+          <p className="mt-2 wrap-break-words text-sm text-muted-foreground">
             We could not find a listing matching ID{" "}
             {listingId}.
           </p>
@@ -365,6 +423,10 @@ export default function AuditPage() {
           )}
         </div>
 
+        <div className="min-w-0">
+          <ListingPreviewCard listing={listing} />
+        </div>
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <AuditScoreCard
           title="Overall"
@@ -420,62 +482,30 @@ export default function AuditPage() {
       </div>
 
       <div className="min-w-0">
-        <AIOptimizeListingCard
-          currentTitle={listing.title}
-          currentDescription={
-            listing.description ?? ""
-          }
-          currentTags={listing.tags ?? []}
-          onOptimizationComplete={
-            handleOptimizationComplete
-          }
-        />
-      </div>
+        <OptimizationTabs
+          listing={listing}
+          focus={focus}
 
-      <div className="min-w-0">
-        <AIRewriteCard
-          key={`title-${optimizationVersion}`}
-          current={listing.title}
-          suggested={suggestedTitle}
-          onSuggestionChange={setSuggestedTitle}
-        />
-      </div>
-
-      <div className="min-w-0">
-        <AIDescriptionRewriteCard
-          key={`description-${optimizationVersion}`}
-          title={listing.title}
-          current={listing.description ?? ""}
-          suggested={suggestedDescription}
-          onSuggestionChange={
-            setSuggestedDescription
-          }
-        />
-      </div>
-
-      <div className="min-w-0">
-        <AITagGeneratorCard
-          key={`tags-${optimizationVersion}`}
-          title={listing.title}
-          description={listing.description ?? ""}
-          currentTags={listing.tags ?? []}
-          suggested={suggestedTags}
-        onSuggestionChange={setSuggestedTags}
-      />
-      </div>
-
-      <div className="min-w-0">
-        <CompleteOptimizationCard
-          currentTitle={listing.title}
-          currentDescription={
-            listing.description ?? ""
-          }
-          currentTags={listing.tags ?? []}
           suggestedTitle={suggestedTitle}
+          setSuggestedTitle={setSuggestedTitle}
+
           suggestedDescription={
             suggestedDescription
           }
+          setSuggestedDescription={
+            setSuggestedDescription
+          }
+        
           suggestedTags={suggestedTags}
+          setSuggestedTags={setSuggestedTags}
+        
+          optimizationVersion={
+            optimizationVersion
+          }
+        
+          onOptimizationComplete={
+            handleOptimizationComplete
+          }
         />
       </div>
 

@@ -21,6 +21,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { calculateAverageScore } from "@/lib/scoring/analyzeListing";
+import AIInsight from "@/components/dashboard/AIInsight";
 
 type HealthScore = {
   name: string;
@@ -123,6 +124,16 @@ export default function ShopHealthCard() {
       },
     ];
 
+    const weakestScoreCategory =
+      [...scores].sort(
+        (a, b) => a.score - b.score,
+      )[0];
+    
+    const strongestScoreCategory =
+      [...scores].sort(
+        (a, b) => b.score - a.score,
+      )[0];
+    
     return {
       overallScore: calculateAverageScore(
         analyses.map(
@@ -132,6 +143,8 @@ export default function ShopHealthCard() {
       ),
       scores,
       analyzedCount: analyses.length,
+      weakestScoreCategory,
+      strongestScoreCategory,
     };
   }, [analyzedListings]);
 
@@ -318,6 +331,11 @@ export default function ShopHealthCard() {
             </div>
           ))}
         </div>
+
+        <AIInsight
+          title="AI Health Summary"
+          message="Your shop is strongest in Tags and has the biggest improvement opportunity in Titles. Improving this area may increase your listing quality score."
+        />
 
         <p className="mt-6 text-xs text-muted-foreground">
           Scores are SellerOS estimates based on

@@ -25,6 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import AIInsight from "@/components/dashboard/AIInsight";
 
 type ListingPriority = "High" | "Medium" | "Low";
 
@@ -163,7 +164,7 @@ export default function ListingsNeedingAttention() {
     return {
       totalCount: allNeedingAttention.length,
       visibleListings:
-        allNeedingAttention.slice(0, 3),
+        allNeedingAttention.slice(0, 2),
     };
   }, [analyzedListings]);
 
@@ -195,7 +196,7 @@ export default function ListingsNeedingAttention() {
         <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
           <CardTitle className="flex items-center gap-2 text-red-700">
             <AlertTriangle className="size-5" />
-            AI Action Center
+            Listings Needing Attention
           </CardTitle>
 
           <CardDescription>
@@ -220,12 +221,11 @@ export default function ListingsNeedingAttention() {
           <div className="min-w-0">
             <CardTitle className="flex min-w-0 items-center gap-2 text-base sm:text-lg">
               <AlertTriangle className="size-5 shrink-0" />
-              AI Action Center
+              Listings Needing Attention
             </CardTitle>
 
             <CardDescription className="mt-1">
-              Your top three lowest-scoring listings,
-              ranked by optimization priority.
+              Listings with the highest opportunity for improvement.
             </CardDescription>
           </div>
 
@@ -299,16 +299,14 @@ export default function ListingsNeedingAttention() {
 
                           <Button
                             variant="outline"
-                            size="sm"
-                            className="w-full sm:w-auto"
                             nativeButton={false}
                             render={
                               <Link
-                                href={`/audit/${listing.id}`}
+                                href={`/audit/${listing.id}?focus=title`}
                               />
                             }
                           >
-                            Review Audit
+                            Fix With AI
                             <ArrowRight className="size-4" />
                           </Button>
                         </div>
@@ -333,6 +331,10 @@ export default function ListingsNeedingAttention() {
             </p>
           </div>
         )}
+
+        <AIInsight
+          message="Focus on your lowest-scoring listings first. Improving weak areas like images, titles, and descriptions can increase listing quality scores."
+        />
 
         <Button
           variant="ghost"

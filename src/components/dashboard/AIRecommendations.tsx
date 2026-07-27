@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -166,6 +167,8 @@ function getRecommendationContent(
 export default function AIRecommendations({
   showAll = false,
   }: AIRecommendationsProps) {
+
+  const router = useRouter();
   const {
     analyzedListings,
     isLoading,
@@ -259,6 +262,35 @@ export default function AIRecommendations({
     );
 
     setWorkspaceOpen(true);
+  }
+
+  function fixWithAI(
+    recommendation: ListingRecommendation,
+  ) {
+    if (recommendation.type === "SEO") {
+      router.push(
+        `/audit/${recommendation.listingId}?focus=title`,
+      );
+      return;
+    }
+
+    if (recommendation.type === "Tags") {
+      router.push(
+        `/audit/${recommendation.listingId}?focus=tags`,
+      );
+      return;
+    }
+
+    if (recommendation.type === "Description") {
+      router.push(
+        `/audit/${recommendation.listingId}?focus=description`,
+      );
+      return;
+    }
+
+    router.push(
+      `/audit/${recommendation.listingId}`,
+    );
   }
 
   if (isLoading) {
@@ -423,18 +455,33 @@ export default function AIRecommendations({
                         </div>
                       </div>
 
-                      <Button
-                        className="mt-auto w-full pt-4 sm:w-auto"
-                        size="sm"
-                        onClick={() =>
-                          openWorkspace(
-                            recommendation,
-                          )
-                        }
-                      >
-                        <Sparkles className="size-4" />
-                        Review Recommendation
-                      </Button>
+                      <div className="mt-auto flex flex-col gap-2 pt-4">
+                        <Button
+                          className="w-full"
+                          size="sm"
+                          onClick={() =>
+                            fixWithAI(recommendation)
+                          }
+                        >
+                          <Sparkles className="size-4" />
+                        
+                          {recommendation.type === "Image" ||
+                          recommendation.type === "Pricing"
+                            ? "Open Audit"
+                            : "Fix With AI"}
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() =>
+                            openWorkspace(recommendation)
+                          }
+                        >
+                          Review Recommendation
+                        </Button>
+                      </div>
                     </div>
                   );
                 },

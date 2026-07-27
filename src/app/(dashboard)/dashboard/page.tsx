@@ -3,6 +3,7 @@ import AIRecommendations from "@/components/dashboard/AIRecommendations";
 import ListingsNeedingAttention from "@/components/dashboard/ListingsNeedingAttention";
 import LiveDashboardStats from "@/components/dashboard/LiveDashboardStats";
 import ShopHealthCard from "@/components/dashboard/ShopHealthCard";
+import TopPerformers from "@/components/dashboard/TopPerformers";
 
 export default function DashboardPage() {
   return (
@@ -15,13 +16,17 @@ export default function DashboardPage() {
         <LiveDashboardStats />
       </div>
 
-      <div className="mt-4 grid min-w-0 gap-4 sm:mt-6 sm:gap-6 xl:grid-cols-2">
+      <div className="mt-4 grid min-w-0 gap-4 sm:mt-6 sm:gap-6 xl:grid-cols-3">
         <div className="min-w-0">
           <ShopHealthCard />
         </div>
 
         <div className="min-w-0">
           <ListingsNeedingAttention />
+        </div>
+
+        <div className="min-w-0">
+          <TopPerformers />
         </div>
       </div>
 

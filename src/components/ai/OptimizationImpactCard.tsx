@@ -129,7 +129,7 @@ export default function OptimizationImpactCard({
       </div>
 
       <div
-        className={`mt-5 min-w-0 rounded-lg border p-3 sm:p-4 ${
+        className={`mt-5 min-w-0 rounded-xl border p-4 sm:p-5 ${
           overallChange > 0
             ? "border-emerald-200 bg-emerald-50"
             : overallChange < 0
@@ -138,18 +138,60 @@ export default function OptimizationImpactCard({
         }`}
       >
         <p className="text-sm font-medium">
-          Overall projected change
+          AI Optimization Forecast
         </p>
-
-        <p className="mt-1 wrap-break-words text-xl font-bold sm:text-2xl">
-          {overallChange > 0 ? "+" : ""}
-          {overallChange} points
+      
+      
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+      
+          <div className="rounded-lg bg-background p-3">
+            <p className="text-xs text-muted-foreground">
+              Current Score
+            </p>
+      
+            <p className="mt-1 text-2xl font-bold">
+              {currentScores.overall}
+              <span className="text-sm font-normal text-muted-foreground">
+                /100
+              </span>
+            </p>
+          </div>
+      
+      
+          <div className="rounded-lg bg-background p-3">
+            <p className="text-xs text-muted-foreground">
+              Projected Score
+            </p>
+      
+            <p className="mt-1 text-2xl font-bold">
+              {projectedScores.overall}
+              <span className="text-sm font-normal text-muted-foreground">
+                /100
+              </span>
+            </p>
+          </div>
+      
+      
+          <div className="rounded-lg bg-background p-3">
+            <p className="text-xs text-muted-foreground">
+              Improvement
+            </p>
+      
+            <p className="mt-1 text-2xl font-bold">
+              {overallChange > 0 ? "+" : ""}
+              {overallChange}
+            </p>
+          </div>
+      
+        </div>
+      
+      
+        <p className="mt-3 text-xs leading-5 text-muted-foreground">
+          SellerOS estimates improvement based on listing
+          quality factors. Actual Etsy ranking and sales
+          results may vary.
         </p>
-
-        <p className="mt-1 wrap-break-words text-xs leading-5 text-muted-foreground">
-          This estimate is based on SellerOS scoring rules,
-          not guaranteed Etsy traffic or sales.
-        </p>
+      
       </div>
 
       <div className="mt-5 min-w-0 space-y-3 sm:mt-6">

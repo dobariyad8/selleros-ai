@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useMemo,
   useState,
   type FormEvent,
@@ -91,6 +92,11 @@ export default function Header() {
     setDismissedNotificationIds,
   ] = useState<string[]>([]);
 
+  const [
+    hasLoadedNotificationState,
+    setHasLoadedNotificationState,
+  ] = useState(false);
+
   const {
     analyzedListings,
     shop,
@@ -106,6 +112,68 @@ export default function Header() {
   const accountStatus = shop
     ? "Connected Etsy shop"
     : "No shop connected";
+
+  const notificationStorageKey = shop?.shopId
+    ? `selleros:read-notifications:${shop.shopId}`
+    : "selleros:read-notifications:disconnected";
+    
+    useEffect(() => {
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  setHasLoadedNotificationState(false);
+
+  try {
+    const storedValue = window.localStorage.getItem(
+      notificationStorageKey,
+    );
+
+    if (!storedValue) {
+      setDismissedNotificationIds([]);
+      return;
+    }
+
+    const parsedValue: unknown =
+      JSON.parse(storedValue);
+
+    if (
+      Array.isArray(parsedValue) &&
+      parsedValue.every(
+        (value) => typeof value === "string",
+      )
+    ) {
+      setDismissedNotificationIds(
+        parsedValue,
+      );
+    } else {
+      setDismissedNotificationIds([]);
+    }
+  } catch {
+    setDismissedNotificationIds([]);
+  } finally {
+    setHasLoadedNotificationState(true);
+  }
+}, [notificationStorageKey]);
+
+useEffect(() => {
+  if (!hasLoadedNotificationState) {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      notificationStorageKey,
+      JSON.stringify(
+        dismissedNotificationIds,
+      ),
+    );
+  } catch {
+    // The notification controls still work for the
+    // current session when browser storage is unavailable.
+  }
+}, [
+  dismissedNotificationIds,
+  hasLoadedNotificationState,
+  notificationStorageKey,
+]);
 
   const urgentNotifications = useMemo(
     () =>
@@ -174,7 +242,7 @@ export default function Header() {
 
   function markAllNotificationsRead() {
     setDismissedNotificationIds(
-      urgentNotifications.map(
+      visibleNotifications.map(
         ({ listing }) =>
           String(listing.id),
       ),
@@ -435,8 +503,8 @@ export default function Header() {
                     </p>
               
                     <p className="mt-1 text-xs font-normal text-muted-foreground">
-                      Reviewed notifications are hidden until
-                      the page is refreshed.
+                      Reviewed notifications will remain hidden
+                      on this device.
                     </p>
                   </div>
                 </DropdownMenuItem>
