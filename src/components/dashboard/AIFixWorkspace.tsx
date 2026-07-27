@@ -124,6 +124,24 @@ function getScoreVariant(score: number) {
   return "destructive" as const;
 }
 
+function getAuditFocus(
+  type: RecommendationType,
+) {
+  if (type === "SEO") {
+    return "title";
+  }
+
+  if (type === "Tags") {
+    return "tags";
+  }
+
+  if (type === "Description") {
+    return "description";
+  }
+
+  return null;
+}
+
 export default function AIFixWorkspace({
   recommendation,
   open,
@@ -141,8 +159,14 @@ export default function AIFixWorkspace({
     typeof recommendation.categoryScore ===
     "number";
 
+  const auditFocus = getAuditFocus(
+    recommendation.type,
+  );
+
   const auditHref = recommendation.listingId
-    ? `/audit/${recommendation.listingId}`
+    ? auditFocus
+      ? `/audit/${recommendation.listingId}?focus=${auditFocus}`
+      : `/audit/${recommendation.listingId}`
     : "/listings";
 
   return (
@@ -313,9 +337,11 @@ export default function AIFixWorkspace({
           >
             <Sparkles className="size-4" />
 
-            {recommendation.listingId
-              ? "Open AI Audit"
-              : "Open Listings"}
+            {!recommendation.listingId
+              ? "Open Listings"
+              : auditFocus
+                ? "Fix With AI"
+                : "Open AI Audit"}
           </Button>
         </SheetFooter>
       </SheetContent>
