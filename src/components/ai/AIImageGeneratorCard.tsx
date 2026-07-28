@@ -1,0 +1,452 @@
+"use client";
+
+import {
+  Download,
+  ImageIcon,
+  LoaderCircle,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+import type { EtsyImageStyle } from "@/lib/ai/prompts";
+import type { SellerOsListing } from "@/lib/etsy/types";
+
+type Props = {
+  listing: SellerOsListing;
+};
+
+type GenerateImageResponse = {
+  success: boolean;
+  generatedImage?: {
+    imageBase64: string;
+    mimeType: string;
+  };
+  error?: string;
+};
+
+const imageStyles: {
+  value: EtsyImageStyle;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "studio",
+    label: "Studio hero",
+    description:
+      "Clean background with professional product lighting.",
+  },
+  {
+    value: "lifestyle",
+    label: "Lifestyle",
+    description:
+      "A realistic scene showing how the product may be presented or used.",
+  },
+  {
+    value: "gift",
+    label: "Gift presentation",
+    description:
+      "A tasteful gifting scene without implying extra items are included.",
+  },
+  {
+    value: "seasonal",
+    label: "Seasonal",
+    description:
+      "Subtle seasonal styling around the real product.",
+  },
+  {
+    value: "thumbnail",
+    label: "Listing thumbnail",
+    description:
+      "A clean square image designed to remain clear at a small size.",
+  },
+];
+
+function getDownloadExtension(
+  mimeType: string,
+) {
+  if (mimeType.includes("jpeg")) {
+    return "jpg";
+  }
+
+  if (mimeType.includes("webp")) {
+    return "webp";
+  }
+
+  return "png";
+}
+
+export default function AIImageGeneratorCard({
+  listing,
+}: Props) {
+  const usableImages = useMemo(
+    () =>
+      [
+        ...new Set(
+          listing.imageUrls
+            .map((url) => url.trim())
+            .filter(Boolean),
+        ),
+      ],
+    [listing.imageUrls],
+  );
+
+  const [selectedImageUrl, setSelectedImageUrl] =
+    useState(usableImages[0] ?? "");
+
+  const [style, setStyle] =
+    useState<EtsyImageStyle>("studio");
+
+  const [
+    customInstructions,
+    setCustomInstructions,
+  ] = useState("");
+
+  const [generatedImageUrl, setGeneratedImageUrl] =
+    useState("");
+
+  const [generatedMimeType, setGeneratedMimeType] =
+    useState("image/png");
+
+  const [isGenerating, setIsGenerating] =
+    useState(false);
+
+  const [error, setError] = useState("");
+
+  const selectedStyle =
+    imageStyles.find(
+      (imageStyle) => imageStyle.value === style,
+    ) ?? imageStyles[0];
+
+  async function generateImage() {
+    if (!selectedImageUrl) {
+      setError(
+        "Select a source image before generating.",
+      );
+
+      return;
+    }
+
+    setIsGenerating(true);
+    setError("");
+
+    try {
+      const orderedImageUrls = [
+        selectedImageUrl,
+        ...usableImages.filter(
+          (url) => url !== selectedImageUrl,
+        ),
+      ];
+
+      const response = await fetch(
+        "/api/ai/generate-image",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            listing: {
+              title: listing.title,
+              description:
+                listing.description ?? "",
+              tags: listing.tags ?? [],
+              imageUrls: orderedImageUrls,
+            },
+            style,
+            customInstructions,
+          }),
+        },
+      );
+
+      const data =
+        (await response.json()) as GenerateImageResponse;
+
+      if (
+        !response.ok ||
+        !data.success ||
+        !data.generatedImage?.imageBase64
+      ) {
+        throw new Error(
+          data.error ||
+            "The image could not be generated.",
+        );
+      }
+
+      const mimeType =
+        data.generatedImage.mimeType ||
+        "image/png";
+
+      setGeneratedMimeType(mimeType);
+
+      setGeneratedImageUrl(
+        `data:${mimeType};base64,${data.generatedImage.imageBase64}`,
+      );
+    } catch (generationError) {
+      setError(
+        generationError instanceof Error
+          ? generationError.message
+          : "The image could not be generated.",
+      );
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
+  function downloadGeneratedImage() {
+    if (!generatedImageUrl) {
+      return;
+    }
+
+    const link = document.createElement("a");
+
+    link.href = generatedImageUrl;
+    link.download = `selleros-${style}-image.${getDownloadExtension(
+      generatedMimeType,
+    )}`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  if (usableImages.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            AI Image Studio
+          </CardTitle>
+
+          <CardDescription>
+            Generate Etsy-ready product images
+            using an existing listing photo.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <div className="rounded-xl border border-dashed p-6 text-center">
+            <ImageIcon className="mx-auto size-8 text-muted-foreground" />
+
+            <p className="mt-3 font-medium">
+              No source images available
+            </p>
+
+            <p className="mt-1 text-sm text-muted-foreground">
+              Add at least one product image to
+              this Etsy listing before using the
+              AI Image Studio.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Sparkles className="size-5" />
+          AI Image Studio
+        </CardTitle>
+
+        <CardDescription>
+          Create an Etsy-ready presentation using
+          one of your real product photos as the
+          source.
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-6">
+        <section>
+          <p className="text-sm font-medium">
+            1. Choose a source image
+          </p>
+
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {usableImages.map((imageUrl, index) => {
+              const isSelected =
+                imageUrl === selectedImageUrl;
+
+              return (
+                <button
+                  key={imageUrl}
+                  type="button"
+                  onClick={() =>
+                    setSelectedImageUrl(imageUrl)
+                  }
+                  className={`relative aspect-square overflow-hidden rounded-xl border-2 bg-muted transition ${
+                    isSelected
+                      ? "border-primary ring-2 ring-primary/20"
+                      : "border-transparent hover:border-border"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imageUrl}
+                    alt={`${listing.title} source image ${
+                      index + 1
+                    }`}
+                    className="size-full object-cover"
+                  />
+
+                  {isSelected ? (
+                    <span className="absolute bottom-2 left-2 rounded-full bg-primary px-2 py-1 text-xs font-medium text-primary-foreground">
+                      Selected
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section>
+          <label
+            htmlFor="image-style"
+            className="text-sm font-medium"
+          >
+            2. Choose an image style
+          </label>
+
+          <select
+            id="image-style"
+            value={style}
+            onChange={(event) =>
+              setStyle(
+                event.target
+                  .value as EtsyImageStyle,
+              )
+            }
+            className="mt-3 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/30"
+          >
+            {imageStyles.map((imageStyle) => (
+              <option
+                key={imageStyle.value}
+                value={imageStyle.value}
+              >
+                {imageStyle.label}
+              </option>
+            ))}
+          </select>
+
+          <p className="mt-2 text-sm text-muted-foreground">
+            {selectedStyle.description}
+          </p>
+        </section>
+
+        <section>
+          <label
+            htmlFor="custom-image-instructions"
+            className="text-sm font-medium"
+          >
+            3. Additional instructions
+          </label>
+
+          <textarea
+            id="custom-image-instructions"
+            value={customInstructions}
+            onChange={(event) =>
+              setCustomInstructions(
+                event.target.value,
+              )
+            }
+            maxLength={500}
+            rows={4}
+            placeholder="Example: Use a warm cream background with soft shadows. Keep all product details exactly the same."
+            className="mt-3 w-full resize-y rounded-xl border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-3 focus:ring-ring/30"
+          />
+
+          <p className="mt-1 text-right text-xs text-muted-foreground">
+            {customInstructions.length}/500
+          </p>
+        </section>
+
+        <Button
+          type="button"
+          onClick={generateImage}
+          disabled={
+            isGenerating || !selectedImageUrl
+          }
+          className="w-full"
+          size="lg"
+        >
+          {isGenerating ? (
+            <>
+              <LoaderCircle className="size-4 animate-spin" />
+              Generating image…
+            </>
+          ) : generatedImageUrl ? (
+            <>
+              <RefreshCw className="size-4" />
+              Regenerate image
+            </>
+          ) : (
+            <>
+              <Sparkles className="size-4" />
+              Generate Etsy image
+            </>
+          )}
+        </Button>
+
+        {error ? (
+          <div
+            role="alert"
+            className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+          >
+            {error}
+          </div>
+        ) : null}
+
+        {generatedImageUrl ? (
+          <section className="space-y-3">
+            <div>
+              <p className="text-sm font-medium">
+                Generated image
+              </p>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                Review the image carefully to
+                confirm that the physical product
+                remains accurate.
+              </p>
+            </div>
+
+            <div className="overflow-hidden rounded-xl border bg-muted">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={generatedImageUrl}
+                alt={`Generated ${selectedStyle.label} image for ${listing.title}`}
+                className="h-auto w-full object-contain"
+              />
+            </div>
+          </section>
+        ) : null}
+      </CardContent>
+
+      {generatedImageUrl ? (
+        <CardFooter className="justify-end border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={downloadGeneratedImage}
+          >
+            <Download className="size-4" />
+            Download image
+          </Button>
+        </CardFooter>
+      ) : null}
+    </Card>
+  );
+}

@@ -105,3 +105,111 @@ Current tags:
 ${formattedCurrentTags}
 `;
 }
+
+export type EtsyImageStyle =
+  | "studio"
+  | "lifestyle"
+  | "gift"
+  | "seasonal"
+  | "thumbnail";
+
+export function buildEtsyImagePrompt({
+  title,
+  description,
+  style,
+  customInstructions,
+}: {
+  title: string;
+  description?: string;
+  style: EtsyImageStyle;
+  customInstructions?: string;
+}) {
+  const styleInstructions: Record<
+    EtsyImageStyle,
+    string
+  > = {
+    studio: `
+Create a clean professional studio product photograph.
+
+- Use a simple neutral background.
+- Use soft commercial studio lighting.
+- Keep the product centered and clearly visible.
+- Create a polished Etsy hero-image composition.
+`,
+    lifestyle: `
+Create a realistic lifestyle product photograph.
+
+- Place the product in a natural setting where it would reasonably be used.
+- Keep the product as the primary focus.
+- Use soft natural-looking lighting.
+- Do not add unsupported product features or accessories.
+`,
+    gift: `
+Create an elegant gift-presentation photograph.
+
+- Present the product in a tasteful gifting scene.
+- Use subtle gift-related styling around the product.
+- Do not imply that packaging or accessories are included unless they appear in the source image.
+- Keep the real product clearly visible.
+`,
+    seasonal: `
+Create a tasteful seasonal Etsy product photograph.
+
+- Add subtle seasonal styling around the product.
+- Keep the scene commercially usable and uncluttered.
+- Do not cover important product details.
+- Do not change the product itself.
+`,
+    thumbnail: `
+Create a high-converting Etsy listing thumbnail.
+
+- Use a clean, uncluttered composition.
+- Make the product large and easy to recognize at small size.
+- Use clear separation between the product and background.
+- Avoid text, badges, logos, and decorative overlays.
+`,
+  };
+
+  const cleanedDescription =
+    description?.trim() ||
+    "No product description was provided.";
+
+  const cleanedCustomInstructions =
+    customInstructions?.trim() ||
+    "No additional instructions.";
+
+  return `
+Create an Etsy-ready product listing image using the supplied product photo as the source of truth.
+
+Product title:
+
+${title.trim()}
+
+Product description:
+
+${cleanedDescription}
+
+Selected image style:
+
+${style}
+
+Style requirements:
+
+${styleInstructions[style]}
+
+Product-preservation requirements:
+
+- Preserve the exact product design, shape, structure, colors, materials, patterns, proportions, and visible details from the source image.
+- Do not redesign, simplify, replace, duplicate, remove, or invent any part of the product.
+- Do not change the number of products shown.
+- Do not create a different variation, color, material, size, engraving, personalization, or accessory.
+- Do not add branding, logos, labels, text, watermarks, pricing, or promotional badges.
+- Do not imply that props, packaging, or accessories are included with the purchase.
+- Improve only the presentation, lighting, background, and composition.
+- Keep the final result realistic and commercially suitable for an Etsy listing.
+
+Additional seller instructions:
+
+${cleanedCustomInstructions}
+`;
+}

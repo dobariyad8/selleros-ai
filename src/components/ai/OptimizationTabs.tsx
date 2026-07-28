@@ -12,6 +12,7 @@ import AIRewriteCard from "@/components/ai/AIRewriteCard";
 import AIDescriptionRewriteCard from "@/components/ai/AIDescriptionReWriteCard";
 import AITagGeneratorCard from "@/components/ai/AITagGeneratorCard";
 import CompleteOptimizationCard from "@/components/ai/CompleteOptimizationCard";
+import AIImageGeneratorCard from "@/components/ai/AIImageGeneratorCard";
 
 import type { SellerOsListing } from "@/lib/etsy/types";
 
@@ -74,7 +75,8 @@ export default function OptimizationTabs({
           if (
             focus === "title" ||
             focus === "description" ||
-            focus === "tags"
+            focus === "tags" ||
+  focus === "image"
           ) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setActiveTab(focus);
@@ -110,6 +112,10 @@ export default function OptimizationTabs({
 
           <TabsTrigger value="tags">
             Tags
+          </TabsTrigger>
+
+          <TabsTrigger value="image">
+            Image
           </TabsTrigger>
 
         </TabsList>
@@ -199,6 +205,12 @@ export default function OptimizationTabs({
               onSuggestionChange={
                 setSuggestedTags
               }
+            />
+          </TabsContent>
+          
+          <TabsContent value="image">
+            <AIImageGeneratorCard
+              listing={listing}
             />
           </TabsContent>
 
