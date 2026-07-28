@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { useListings } from "@/hooks/useListings";
+import SavedAiImageLibrary from "@/components/images/SavedAiImageLibrary";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -502,6 +503,8 @@ export default function ImagesPage() {
           </CardContent>
         </Card>
       </div>
+
+      <SavedAiImageLibrary />
 
       <Card className="mt-4 min-w-0 sm:mt-6">
         <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">

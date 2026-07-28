@@ -5,9 +5,16 @@ import {
   ImageIcon,
   LoaderCircle,
   RefreshCw,
+  Save,
   Sparkles,
 } from "lucide-react";
+
 import { useMemo, useState } from "react";
+
+import {
+  dataUrlToBlob,
+  saveAiImage,
+} from "@/lib/images/imageLibrary";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +49,7 @@ type GeneratedImageHistoryItem = {
   style: EtsyImageStyle;
   styleLabel: string;
   customInstructions: string;
+  sourceImageUrl: string;
   createdAt: string;
 };
 
@@ -129,7 +137,16 @@ export default function AIImageGeneratorCard({
     useState("image/png");
 
     const [generatedImages, setGeneratedImages] =
-    useState<GeneratedImageHistoryItem[]>([]);
+        useState<GeneratedImageHistoryItem[]>([]);
+
+    const [savedImageIds, setSavedImageIds] =
+      useState<string[]>([]);
+
+    const [savingImageId, setSavingImageId] =
+      useState<string | null>(null);
+
+    const [libraryMessage, setLibraryMessage] =
+      useState("");
 
   const [isGenerating, setIsGenerating] =
     useState(false);
@@ -207,6 +224,7 @@ export default function AIImageGeneratorCard({
           id: crypto.randomUUID(),
           imageUrl,
           mimeType,
+          sourceImageUrl: selectedImageUrl,
           style,
           styleLabel: selectedStyle.label,
           customInstructions:
@@ -272,6 +290,61 @@ function removeGeneratedImage(id: string) {
       (image) => image.id !== id,
     ),
   );
+}
+
+async function saveGeneratedImage(
+  generatedImage: GeneratedImageHistoryItem,
+) {
+  if (
+    savedImageIds.includes(generatedImage.id)
+  ) {
+    return;
+  }
+
+  setSavingImageId(generatedImage.id);
+  setLibraryMessage("");
+  setError("");
+
+  try {
+    const imageBlob = dataUrlToBlob(
+      generatedImage.imageUrl,
+    );
+
+    await saveAiImage({
+      id: generatedImage.id,
+      listingId: String(listing.id),
+      listingTitle:
+        listing.title?.trim() ||
+        "Untitled listing",
+      imageBlob,
+      mimeType: generatedImage.mimeType,
+      style: generatedImage.style,
+      styleLabel:
+        generatedImage.styleLabel,
+      customInstructions:
+        generatedImage.customInstructions,
+      sourceImageUrl:
+        generatedImage.sourceImageUrl,
+      createdAt: generatedImage.createdAt,
+    });
+
+    setSavedImageIds((currentIds) => [
+      ...currentIds,
+      generatedImage.id,
+    ]);
+
+    setLibraryMessage(
+      "Image saved to your AI image library.",
+    );
+  } catch (saveError) {
+    setError(
+      saveError instanceof Error
+        ? saveError.message
+        : "The image could not be saved.",
+    );
+  } finally {
+    setSavingImageId(null);
+  }
 }
 
   if (usableImages.length === 0) {
@@ -495,12 +568,12 @@ function removeGeneratedImage(id: string) {
                 <p className="text-sm font-medium">
                   Generation history
                 </p>
-                
+
                 <p className="mt-1 text-sm text-muted-foreground">
                   Images generated during this session.
                 </p>
               </div>
-                
+
               <span className="text-xs text-muted-foreground">
                 {generatedImages.length}{" "}
                 {generatedImages.length === 1
@@ -544,13 +617,12 @@ function removeGeneratedImage(id: string) {
                         }
                       </p>
                     ) : null}
-        
-                    <div className="flex gap-2">
+
+                    <div className="grid grid-cols-2 gap-2">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="flex-1"
                         onClick={() =>
                           downloadImage({
                             imageUrl:
@@ -568,15 +640,53 @@ function removeGeneratedImage(id: string) {
                     
                       <Button
                         type="button"
+                        size="sm"
+                        disabled={
+                          savingImageId ===
+                            generatedImage.id ||
+                          savedImageIds.includes(
+                            generatedImage.id,
+                          )
+                        }
+                        onClick={() =>
+                          saveGeneratedImage(
+                            generatedImage,
+                          )
+                        }
+                      >
+                        {savingImageId ===
+                        generatedImage.id ? (
+                          <>
+                            <LoaderCircle className="size-4 animate-spin" />
+                            Saving…
+                          </>
+                        ) : savedImageIds.includes(
+                            generatedImage.id,
+                          ) ? (
+                          <>
+                            <Save className="size-4" />
+                            Saved
+                          </>
+                        ) : (
+                          <>
+                            <Save className="size-4" />
+                            Save
+                          </>
+                        )}
+                      </Button>
+                    
+                      <Button
+                        type="button"
                         variant="ghost"
                         size="sm"
+                        className="col-span-2"
                         onClick={() =>
                           removeGeneratedImage(
                             generatedImage.id,
                           )
                         }
                       >
-                        Remove
+                        Remove from session history
                       </Button>
                     </div>
                   </div>
