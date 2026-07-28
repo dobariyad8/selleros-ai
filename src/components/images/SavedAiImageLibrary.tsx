@@ -1,13 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import {
+  ArrowRight,
   Download,
   ImageIcon,
   LoaderCircle,
   RefreshCw,
+  Sparkles,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,6 +77,90 @@ export default function SavedAiImageLibrary() {
     useState<string | null>(null);
 
   const [error, setError] = useState("");
+
+  const [listingFilter, setListingFilter] =
+      useState("all");
+
+    const [styleFilter, setStyleFilter] =
+      useState("all");
+
+      const listingOptions = useMemo(() => {
+      const listings = new Map<
+        string,
+        string
+      >();
+
+      images.forEach((image) => {
+        listings.set(
+          image.listingId,
+          image.listingTitle,
+        );
+      });
+
+      return Array.from(
+        listings.entries(),
+      )
+        .map(([id, title]) => ({
+          id,
+          title,
+        }))
+        .sort((first, second) =>
+          first.title.localeCompare(
+            second.title,
+          ),
+        );
+    }, [images]);
+
+    const styleOptions = useMemo(() => {
+      const styles = new Map<
+        string,
+        string
+      >();
+
+      images.forEach((image) => {
+        styles.set(
+          image.style,
+          image.styleLabel,
+        );
+      });
+
+      return Array.from(
+        styles.entries(),
+      )
+        .map(([value, label]) => ({
+          value,
+          label,
+        }))
+        .sort((first, second) =>
+          first.label.localeCompare(
+            second.label,
+          ),
+        );
+    }, [images]);
+
+    const filteredImages = useMemo(
+      () =>
+        images.filter((image) => {
+          const matchesListing =
+            listingFilter === "all" ||
+            image.listingId ===
+              listingFilter;
+
+          const matchesStyle =
+            styleFilter === "all" ||
+            image.style === styleFilter;
+
+          return (
+            matchesListing &&
+            matchesStyle
+          );
+        }),
+      [
+        images,
+        listingFilter,
+        styleFilter,
+      ],
+    );
 
   async function loadImages() {
     setIsLoading(true);
@@ -193,8 +284,12 @@ export default function SavedAiImageLibrary() {
               variant="outline"
               className="shrink-0"
             >
-              {images.length}{" "}
-              {images.length === 1
+              {filteredImages.length}
+              {filteredImages.length !==
+              images.length
+                ? ` of ${images.length}`
+                : ""}{" "}
+              {filteredImages.length === 1
                 ? "image"
                 : "images"}
             </Badge>
@@ -232,6 +327,81 @@ export default function SavedAiImageLibrary() {
           </div>
         ) : null}
 
+        {!isLoading &&
+            images.length > 0 ? (
+              <div className="mb-5 grid min-w-0 grid-cols-1 gap-3 rounded-xl border bg-muted/20 p-3 sm:grid-cols-2 sm:p-4">
+                <div className="min-w-0">
+                  <label
+                    htmlFor="saved-image-listing-filter"
+                    className="text-sm font-medium"
+                  >
+                    Filter by listing
+                  </label>
+            
+                  <select
+                    id="saved-image-listing-filter"
+                    value={listingFilter}
+                    onChange={(event) =>
+                      setListingFilter(
+                        event.target.value,
+                      )
+                    }
+                    className="mt-2 h-10 w-full min-w-0 rounded-xl border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/30"
+                  >
+                    <option value="all">
+                      All listings
+                    </option>
+                
+                    {listingOptions.map(
+                      (listing) => (
+                        <option
+                          key={listing.id}
+                          value={listing.id}
+                        >
+                          {listing.title}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                </div>
+                
+                <div className="min-w-0">
+                  <label
+                    htmlFor="saved-image-style-filter"
+                    className="text-sm font-medium"
+                  >
+                    Filter by style
+                  </label>
+                
+                  <select
+                    id="saved-image-style-filter"
+                    value={styleFilter}
+                    onChange={(event) =>
+                      setStyleFilter(
+                        event.target.value,
+                      )
+                    }
+                    className="mt-2 h-10 w-full min-w-0 rounded-xl border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/30"
+                  >
+                    <option value="all">
+                      All styles
+                    </option>
+                
+                    {styleOptions.map(
+                      (imageStyle) => (
+                        <option
+                          key={imageStyle.value}
+                          value={imageStyle.value}
+                        >
+                          {imageStyle.label}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                </div>
+              </div>
+            ) : null}
+
         {isLoading ? (
           <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed">
             <div className="text-center">
@@ -242,9 +412,9 @@ export default function SavedAiImageLibrary() {
               </p>
             </div>
           </div>
-        ) : images.length > 0 ? (
+        ) : filteredImages.length > 0 ? (
           <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {images.map((image) => (
+            {filteredImages.map((image) => (
               <article
                 key={image.id}
                 className="min-w-0 overflow-hidden rounded-xl border bg-card"
@@ -286,59 +456,110 @@ export default function SavedAiImageLibrary() {
                   ) : null}
 
                   <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        downloadImage(image)
-                      }
-                    >
-                      <Download className="size-4" />
-                      Download
-                    </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          downloadImage(image)
+                        }
+                      >
+                        <Download className="size-4" />
+                        Download
+                      </Button>
+                    
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        disabled={
+                          deletingImageId === image.id
+                        }
+                        onClick={() =>
+                          void deleteImage(image)
+                        }
+                      >
+                        {deletingImageId ===
+                        image.id ? (
+                          <LoaderCircle className="size-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="size-4" />
+                        )}
 
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      disabled={
-                        deletingImageId ===
-                        image.id
-                      }
-                      onClick={() =>
-                        void deleteImage(image)
-                      }
-                    >
-                      {deletingImageId ===
-                      image.id ? (
-                        <LoaderCircle className="size-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="size-4" />
-                      )}
-
-                      Delete
-                    </Button>
-                  </div>
+                        Delete
+                      </Button>
+                    
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        nativeButton={false}
+                        render={
+                          <Link
+                            href={`/audit/${image.listingId}`}
+                          />
+                        }
+                      >
+                        Open Audit
+                        <ArrowRight className="size-4" />
+                      </Button>
+                    
+                      <Button
+                        size="sm"
+                        nativeButton={false}
+                        render={
+                          <Link
+                            href={`/audit/${image.listingId}?focus=image`}
+                          />
+                        }
+                      >
+                        <Sparkles className="size-4" />
+                        Create More
+                      </Button>
+                    </div>
                 </div>
               </article>
             ))}
           </div>
-        ) : (
-          <div className="rounded-xl border border-dashed p-6 text-center sm:p-10">
-            <ImageIcon className="mx-auto size-9 text-muted-foreground" />
+        ) : images.length > 0 ? (
+            <div className="rounded-xl border border-dashed p-6 text-center sm:p-10">
+              <ImageIcon className="mx-auto size-9 text-muted-foreground" />
+                  
+              <p className="mt-3 font-medium">
+                No images match these filters
+              </p>
+                  
+              <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
+                Select another listing or image
+                style to view saved results.
+              </p>
+                  
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-4"
+                onClick={() => {
+                  setListingFilter("all");
+                  setStyleFilter("all");
+                }}
+              >
+                Clear filters
+              </Button>
+            </div>
+    ) : (
+  <div className="rounded-xl border border-dashed p-6 text-center sm:p-10">
+    <ImageIcon className="mx-auto size-9 text-muted-foreground" />
 
-            <p className="mt-3 font-medium">
-              No saved AI images
-            </p>
+    <p className="mt-3 font-medium">
+      No saved AI images
+    </p>
 
-            <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
-              Generate an image from a listing
-              audit and select Save to add it to
-              this library.
-            </p>
-          </div>
-        )}
+    <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
+      Generate an image from a listing
+      audit and select Save to add it to
+      this library.
+    </p>
+  </div>
+)}
 
         <p className="mt-4 text-xs leading-5 text-muted-foreground">
           Saved images are stored locally in this
