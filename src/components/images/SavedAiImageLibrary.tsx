@@ -77,108 +77,130 @@ export default function SavedAiImageLibrary() {
   const [deletingImageId, setDeletingImageId] =
     useState<string | null>(null);
 
+  const [isBulkDeleting, setIsBulkDeleting] =
+    useState(false);
+
   const [error, setError] = useState("");
 
   const [listingFilter, setListingFilter] =
-      useState("all");
+    useState("all");
 
-    const [styleFilter, setStyleFilter] =
-      useState("all");
+  const [styleFilter, setStyleFilter] =
+    useState("all");
 
-    const [searchQuery, setSearchQuery] =
-  useState("");
+  const [searchQuery, setSearchQuery] =
+    useState("");
 
-      const listingOptions = useMemo(() => {
-      const listings = new Map<
-        string,
-        string
-      >();
+  const [
+    selectedImageIds,
+    setSelectedImageIds,
+  ] = useState<string[]>([]);
 
-      images.forEach((image) => {
-        listings.set(
-          image.listingId,
-          image.listingTitle,
-        );
-      });
+  const listingOptions = useMemo(() => {
+    const listings = new Map<
+      string,
+      string
+    >();
 
-      return Array.from(
-        listings.entries(),
-      )
-        .map(([id, title]) => ({
-          id,
-          title,
-        }))
-        .sort((first, second) =>
-          first.title.localeCompare(
-            second.title,
-          ),
-        );
-    }, [images]);
+    images.forEach((image) => {
+      listings.set(
+        image.listingId,
+        image.listingTitle,
+      );
+    });
 
-    const styleOptions = useMemo(() => {
-      const styles = new Map<
-        string,
-        string
-      >();
+    return Array.from(
+      listings.entries(),
+    )
+      .map(([id, title]) => ({
+        id,
+        title,
+      }))
+      .sort((first, second) =>
+        first.title.localeCompare(
+          second.title,
+        ),
+      );
+  }, [images]);
 
-      images.forEach((image) => {
-        styles.set(
-          image.style,
-          image.styleLabel,
-        );
-      });
+  const styleOptions = useMemo(() => {
+    const styles = new Map<
+      string,
+      string
+    >();
 
-      return Array.from(
-        styles.entries(),
-      )
-        .map(([value, label]) => ({
-          value,
-          label,
-        }))
-        .sort((first, second) =>
-          first.label.localeCompare(
-            second.label,
-          ),
-        );
-    }, [images]);
+    images.forEach((image) => {
+      styles.set(
+        image.style,
+        image.styleLabel,
+      );
+    });
 
-    const filteredImages = useMemo(() => {
-      const normalizedSearch =
-        searchQuery.trim().toLowerCase();
+    return Array.from(
+      styles.entries(),
+    )
+      .map(([value, label]) => ({
+        value,
+        label,
+      }))
+      .sort((first, second) =>
+        first.label.localeCompare(
+          second.label,
+        ),
+      );
+  }, [images]);
 
-      return images.filter((image) => {
-        const matchesListing =
-          listingFilter === "all" ||
-          image.listingId === listingFilter;
+  const filteredImages = useMemo(() => {
+    const normalizedSearch =
+      searchQuery.trim().toLowerCase();
 
-        const matchesStyle =
-          styleFilter === "all" ||
-          image.style === styleFilter;
+    return images.filter((image) => {
+      const matchesListing =
+        listingFilter === "all" ||
+        image.listingId === listingFilter;
 
-        const matchesSearch =
-          !normalizedSearch ||
-          image.listingTitle
-            .toLowerCase()
-            .includes(normalizedSearch) ||
-          image.styleLabel
-            .toLowerCase()
-            .includes(normalizedSearch) ||
-          image.customInstructions
-            .toLowerCase()
-            .includes(normalizedSearch);
+      const matchesStyle =
+        styleFilter === "all" ||
+        image.style === styleFilter;
 
-        return (
-          matchesListing &&
-          matchesStyle &&
-          matchesSearch
-        );
-      });
-    }, [
-      images,
-      listingFilter,
-      styleFilter,
-      searchQuery,
-    ]);
+      const matchesSearch =
+        !normalizedSearch ||
+        image.listingTitle
+          .toLowerCase()
+          .includes(normalizedSearch) ||
+        image.styleLabel
+          .toLowerCase()
+          .includes(normalizedSearch) ||
+        image.customInstructions
+          .toLowerCase()
+          .includes(normalizedSearch);
+
+      return (
+        matchesListing &&
+        matchesStyle &&
+        matchesSearch
+      );
+    });
+  }, [
+    images,
+    listingFilter,
+    styleFilter,
+    searchQuery,
+  ]);
+
+  const selectedImages = useMemo(
+    () =>
+      images.filter((image) =>
+        selectedImageIds.includes(image.id),
+      ),
+    [images, selectedImageIds],
+  );
+
+  const allFilteredImagesSelected =
+    filteredImages.length > 0 &&
+    filteredImages.every((image) =>
+      selectedImageIds.includes(image.id),
+    );
 
   async function loadImages() {
     setIsLoading(true);
@@ -205,6 +227,8 @@ export default function SavedAiImageLibrary() {
 
         return libraryImages;
       });
+
+      setSelectedImageIds([]);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -248,6 +272,117 @@ export default function SavedAiImageLibrary() {
     link.remove();
   }
 
+  function toggleImageSelection(
+    imageId: string,
+  ) {
+    setSelectedImageIds((currentIds) =>
+      currentIds.includes(imageId)
+        ? currentIds.filter(
+            (id) => id !== imageId,
+          )
+        : [...currentIds, imageId],
+    );
+  }
+
+  function toggleAllFilteredImages() {
+    if (allFilteredImagesSelected) {
+      const filteredIds = new Set(
+        filteredImages.map(
+          (image) => image.id,
+        ),
+      );
+
+      setSelectedImageIds((currentIds) =>
+        currentIds.filter(
+          (id) => !filteredIds.has(id),
+        ),
+      );
+
+      return;
+    }
+
+    setSelectedImageIds((currentIds) => [
+      ...new Set([
+        ...currentIds,
+        ...filteredImages.map(
+          (image) => image.id,
+        ),
+      ]),
+    ]);
+  }
+
+  async function downloadSelectedImages() {
+    for (
+      let index = 0;
+      index < selectedImages.length;
+      index += 1
+    ) {
+      downloadImage(selectedImages[index]);
+
+      await new Promise((resolve) =>
+        window.setTimeout(resolve, 150),
+      );
+    }
+  }
+
+  async function deleteSelectedImages() {
+    if (selectedImages.length === 0) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete ${selectedImages.length} selected ${
+        selectedImages.length === 1
+          ? "image"
+          : "images"
+      }? This cannot be undone.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsBulkDeleting(true);
+    setError("");
+
+    try {
+      await Promise.all(
+        selectedImages.map((image) =>
+          deleteSavedAiImage(image.id),
+        ),
+      );
+
+      const selectedIds = new Set(
+        selectedImages.map(
+          (image) => image.id,
+        ),
+      );
+
+      selectedImages.forEach((image) => {
+        URL.revokeObjectURL(
+          image.objectUrl,
+        );
+      });
+
+      setImages((currentImages) =>
+        currentImages.filter(
+          (image) =>
+            !selectedIds.has(image.id),
+        ),
+      );
+
+      setSelectedImageIds([]);
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "The selected images could not be deleted.",
+      );
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  }
+
   async function deleteImage(
     image: LibraryImage,
   ) {
@@ -269,6 +404,12 @@ export default function SavedAiImageLibrary() {
             currentImage.id !== image.id,
         ),
       );
+
+      setSelectedImageIds((currentIds) =>
+        currentIds.filter(
+          (id) => id !== image.id,
+        ),
+      );
     } catch (deleteError) {
       setError(
         deleteError instanceof Error
@@ -287,7 +428,6 @@ export default function SavedAiImageLibrary() {
           <div className="min-w-0">
             <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <ImageIcon className="size-5 shrink-0" />
-
               Saved AI Images
             </CardTitle>
 
@@ -297,7 +437,7 @@ export default function SavedAiImageLibrary() {
             </CardDescription>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge
               variant="outline"
               className="shrink-0"
@@ -328,7 +468,6 @@ export default function SavedAiImageLibrary() {
                     : "size-4"
                 }
               />
-
               Refresh
             </Button>
           </div>
@@ -346,105 +485,167 @@ export default function SavedAiImageLibrary() {
         ) : null}
 
         {!isLoading &&
-            images.length > 0 ? (
-                
-              <div className="mb-5 grid min-w-0 grid-cols-1 gap-3 rounded-xl border bg-muted/20 p-3 sm:grid-cols-2 sm:p-4 lg:grid-cols-3">
-                <div className="min-w-0 sm:col-span-2 lg:col-span-1">
-                  <label
-                    htmlFor="saved-image-search"
-                    className="text-sm font-medium"
-                  >
-                    Search saved images
-                  </label>
+        images.length > 0 ? (
+          <div className="mb-5 grid min-w-0 grid-cols-1 gap-3 rounded-xl border bg-muted/20 p-3 sm:grid-cols-2 sm:p-4 lg:grid-cols-3">
+            <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+              <label
+                htmlFor="saved-image-search"
+                className="text-sm font-medium"
+              >
+                Search saved images
+              </label>
 
-                  <div className="relative mt-2">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <div className="relative mt-2">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 
-                    <input
-                      id="saved-image-search"
-                      type="search"
-                      value={searchQuery}
-                      onChange={(event) =>
-                        setSearchQuery(
-                          event.target.value,
-                        )
-                      }
-                      placeholder="Search listing, style, or instructions"
-                      className="h-10 w-full min-w-0 rounded-xl border bg-background pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-3 focus:ring-ring/30"
-                    />
-                  </div>
-                </div>
-                <div className="min-w-0">
-                  <label
-                    htmlFor="saved-image-listing-filter"
-                    className="text-sm font-medium"
-                  >
-                    Filter by listing
-                  </label>
-            
-                  <select
-                    id="saved-image-listing-filter"
-                    value={listingFilter}
-                    onChange={(event) =>
-                      setListingFilter(
-                        event.target.value,
-                      )
-                    }
-                    className="mt-2 h-10 w-full min-w-0 rounded-xl border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/30"
-                  >
-                    <option value="all">
-                      All listings
-                    </option>
-                
-                    {listingOptions.map(
-                      (listing) => (
-                        <option
-                          key={listing.id}
-                          value={listing.id}
-                        >
-                          {listing.title}
-                        </option>
-                      ),
-                    )}
-                  </select>
-                </div>
-                
-                <div className="min-w-0">
-                  <label
-                    htmlFor="saved-image-style-filter"
-                    className="text-sm font-medium"
-                  >
-                    Filter by style
-                  </label>
-                
-                  <select
-                    id="saved-image-style-filter"
-                    value={styleFilter}
-                    onChange={(event) =>
-                      setStyleFilter(
-                        event.target.value,
-                      )
-                    }
-                    className="mt-2 h-10 w-full min-w-0 rounded-xl border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/30"
-                  >
-                    <option value="all">
-                      All styles
-                    </option>
-                
-                    {styleOptions.map(
-                      (imageStyle) => (
-                        <option
-                          key={imageStyle.value}
-                          value={imageStyle.value}
-                        >
-                          {imageStyle.label}
-                        </option>
-                      ),
-                    )}
-                  </select>
-                </div>
+                <input
+                  id="saved-image-search"
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) =>
+                    setSearchQuery(
+                      event.target.value,
+                    )
+                  }
+                  placeholder="Search listing, style, or instructions"
+                  className="h-10 w-full min-w-0 rounded-xl border bg-background pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-3 focus:ring-ring/30"
+                />
               </div>
-            ) : null}
+            </div>
+
+            <div className="min-w-0">
+              <label
+                htmlFor="saved-image-listing-filter"
+                className="text-sm font-medium"
+              >
+                Filter by listing
+              </label>
+
+              <select
+                id="saved-image-listing-filter"
+                value={listingFilter}
+                onChange={(event) =>
+                  setListingFilter(
+                    event.target.value,
+                  )
+                }
+                className="mt-2 h-10 w-full min-w-0 rounded-xl border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/30"
+              >
+                <option value="all">
+                  All listings
+                </option>
+
+                {listingOptions.map(
+                  (listing) => (
+                    <option
+                      key={listing.id}
+                      value={listing.id}
+                    >
+                      {listing.title}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+
+            <div className="min-w-0">
+              <label
+                htmlFor="saved-image-style-filter"
+                className="text-sm font-medium"
+              >
+                Filter by style
+              </label>
+
+              <select
+                id="saved-image-style-filter"
+                value={styleFilter}
+                onChange={(event) =>
+                  setStyleFilter(
+                    event.target.value,
+                  )
+                }
+                className="mt-2 h-10 w-full min-w-0 rounded-xl border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/30"
+              >
+                <option value="all">
+                  All styles
+                </option>
+
+                {styleOptions.map(
+                  (imageStyle) => (
+                    <option
+                      key={imageStyle.value}
+                      value={imageStyle.value}
+                    >
+                      {imageStyle.label}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+          </div>
+        ) : null}
+
+        {!isLoading &&
+        filteredImages.length > 0 ? (
+          <div className="mb-4 flex min-w-0 flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={
+                  allFilteredImagesSelected
+                }
+                onChange={
+                  toggleAllFilteredImages
+                }
+                className="size-4 rounded border"
+              />
+
+              Select all visible
+            </label>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <span className="text-sm text-muted-foreground">
+                {selectedImages.length} selected
+              </span>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={
+                  selectedImages.length === 0
+                }
+                onClick={() =>
+                  void downloadSelectedImages()
+                }
+              >
+                <Download className="size-4" />
+                Download Selected
+              </Button>
+
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={
+                  selectedImages.length === 0 ||
+                  isBulkDeleting
+                }
+                onClick={() =>
+                  void deleteSelectedImages()
+                }
+              >
+                {isBulkDeleting ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <Trash2 className="size-4" />
+                )}
+
+                Delete Selected
+              </Button>
+            </div>
+          </div>
+        ) : null}
 
         {isLoading ? (
           <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed">
@@ -461,9 +662,32 @@ export default function SavedAiImageLibrary() {
             {filteredImages.map((image) => (
               <article
                 key={image.id}
-                className="min-w-0 overflow-hidden rounded-xl border bg-card"
+                className={`min-w-0 overflow-hidden rounded-xl border bg-card ${
+                  selectedImageIds.includes(
+                    image.id,
+                  )
+                    ? "ring-2 ring-primary/30"
+                    : ""
+                }`}
               >
-                <div className="aspect-square bg-muted">
+                <div className="relative aspect-square bg-muted">
+                  <label className="absolute left-3 top-3 z-10 flex cursor-pointer items-center gap-2 rounded-full bg-background/95 px-3 py-1.5 text-xs font-medium shadow-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedImageIds.includes(
+                        image.id,
+                      )}
+                      onChange={() =>
+                        toggleImageSelection(
+                          image.id,
+                        )
+                      }
+                      className="size-4 rounded border"
+                    />
+
+                    Select
+                  </label>
+
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={image.objectUrl}
@@ -500,111 +724,112 @@ export default function SavedAiImageLibrary() {
                   ) : null}
 
                   <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          downloadImage(image)
-                        }
-                      >
-                        <Download className="size-4" />
-                        Download
-                      </Button>
-                    
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        disabled={
-                          deletingImageId === image.id
-                        }
-                        onClick={() =>
-                          void deleteImage(image)
-                        }
-                      >
-                        {deletingImageId ===
-                        image.id ? (
-                          <LoaderCircle className="size-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="size-4" />
-                        )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        downloadImage(image)
+                      }
+                    >
+                      <Download className="size-4" />
+                      Download
+                    </Button>
 
-                        Delete
-                      </Button>
-                    
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        nativeButton={false}
-                        render={
-                          <Link
-                            href={`/audit/${image.listingId}`}
-                          />
-                        }
-                      >
-                        Open Audit
-                        <ArrowRight className="size-4" />
-                      </Button>
-                    
-                      <Button
-                        size="sm"
-                        nativeButton={false}
-                        render={
-                          <Link
-                            href={`/audit/${image.listingId}?focus=image`}
-                          />
-                        }
-                      >
-                        <Sparkles className="size-4" />
-                        Create More
-                      </Button>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      disabled={
+                        deletingImageId === image.id
+                      }
+                      onClick={() =>
+                        void deleteImage(image)
+                      }
+                    >
+                      {deletingImageId ===
+                      image.id ? (
+                        <LoaderCircle className="size-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="size-4" />
+                      )}
+
+                      Delete
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      nativeButton={false}
+                      render={
+                        <Link
+                          href={`/audit/${image.listingId}`}
+                        />
+                      }
+                    >
+                      Open Audit
+                      <ArrowRight className="size-4" />
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      nativeButton={false}
+                      render={
+                        <Link
+                          href={`/audit/${image.listingId}?focus=image`}
+                        />
+                      }
+                    >
+                      <Sparkles className="size-4" />
+                      Create More
+                    </Button>
+                  </div>
                 </div>
               </article>
             ))}
           </div>
         ) : images.length > 0 ? (
-            <div className="rounded-xl border border-dashed p-6 text-center sm:p-10">
-              <ImageIcon className="mx-auto size-9 text-muted-foreground" />
+          <div className="rounded-xl border border-dashed p-6 text-center sm:p-10">
+            <ImageIcon className="mx-auto size-9 text-muted-foreground" />
 
-              <p className="mt-3 font-medium">
-                No images match these filters
-              </p>
+            <p className="mt-3 font-medium">
+              No images match these filters
+            </p>
 
-              <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
-                Try another search term, listing,
-                or image style.
-              </p>
+            <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
+              Try another search term, listing,
+              or image style.
+            </p>
 
-              <Button
-                type="button"
-                variant="outline"
-                className="mt-4"
-                onClick={() => {
-                  setSearchQuery("");
-                  setListingFilter("all");
-                  setStyleFilter("all");
-                }}
-              >
-                Clear filters
-              </Button>
-            </div>
-    ) : (
-  <div className="rounded-xl border border-dashed p-6 text-center sm:p-10">
-    <ImageIcon className="mx-auto size-9 text-muted-foreground" />
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-4"
+              onClick={() => {
+                setSearchQuery("");
+                setListingFilter("all");
+                setStyleFilter("all");
+                setSelectedImageIds([]);
+              }}
+            >
+              Clear filters
+            </Button>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed p-6 text-center sm:p-10">
+            <ImageIcon className="mx-auto size-9 text-muted-foreground" />
 
-    <p className="mt-3 font-medium">
-      No saved AI images
-    </p>
+            <p className="mt-3 font-medium">
+              No saved AI images
+            </p>
 
-    <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
-      Generate an image from a listing
-      audit and select Save to add it to
-      this library.
-    </p>
-  </div>
-)}
+            <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
+              Generate an image from a listing
+              audit and select Save to add it to
+              this library.
+            </p>
+          </div>
+        )}
 
         <p className="mt-4 text-xs leading-5 text-muted-foreground">
           Saved images are stored locally in this
