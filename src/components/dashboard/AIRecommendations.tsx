@@ -288,6 +288,13 @@ export default function AIRecommendations({
       return;
     }
 
+    if (recommendation.type === "Image") {
+      router.push(
+        `/audit/${recommendation.listingId}?focus=image`,
+      );
+      return;
+    }
+
     router.push(
       `/audit/${recommendation.listingId}`,
     );
@@ -465,10 +472,11 @@ export default function AIRecommendations({
                         >
                           <Sparkles className="size-4" />
                         
-                          {recommendation.type === "Image" ||
-                          recommendation.type === "Pricing"
+                          {recommendation.type === "Pricing"
                             ? "Open Audit"
-                            : "Fix With AI"}
+                            : recommendation.type === "Image"
+                              ? "Create Images"
+                              : "Fix With AI"}
                         </Button>
                         
                         <Button
