@@ -7,6 +7,7 @@ import {
   ImageIcon,
   LoaderCircle,
   RefreshCw,
+  Search,
   Sparkles,
   Trash2,
 } from "lucide-react";
@@ -84,6 +85,9 @@ export default function SavedAiImageLibrary() {
     const [styleFilter, setStyleFilter] =
       useState("all");
 
+    const [searchQuery, setSearchQuery] =
+  useState("");
+
       const listingOptions = useMemo(() => {
       const listings = new Map<
         string,
@@ -138,29 +142,43 @@ export default function SavedAiImageLibrary() {
         );
     }, [images]);
 
-    const filteredImages = useMemo(
-      () =>
-        images.filter((image) => {
-          const matchesListing =
-            listingFilter === "all" ||
-            image.listingId ===
-              listingFilter;
+    const filteredImages = useMemo(() => {
+      const normalizedSearch =
+        searchQuery.trim().toLowerCase();
 
-          const matchesStyle =
-            styleFilter === "all" ||
-            image.style === styleFilter;
+      return images.filter((image) => {
+        const matchesListing =
+          listingFilter === "all" ||
+          image.listingId === listingFilter;
 
-          return (
-            matchesListing &&
-            matchesStyle
-          );
-        }),
-      [
-        images,
-        listingFilter,
-        styleFilter,
-      ],
-    );
+        const matchesStyle =
+          styleFilter === "all" ||
+          image.style === styleFilter;
+
+        const matchesSearch =
+          !normalizedSearch ||
+          image.listingTitle
+            .toLowerCase()
+            .includes(normalizedSearch) ||
+          image.styleLabel
+            .toLowerCase()
+            .includes(normalizedSearch) ||
+          image.customInstructions
+            .toLowerCase()
+            .includes(normalizedSearch);
+
+        return (
+          matchesListing &&
+          matchesStyle &&
+          matchesSearch
+        );
+      });
+    }, [
+      images,
+      listingFilter,
+      styleFilter,
+      searchQuery,
+    ]);
 
   async function loadImages() {
     setIsLoading(true);
@@ -329,7 +347,33 @@ export default function SavedAiImageLibrary() {
 
         {!isLoading &&
             images.length > 0 ? (
-              <div className="mb-5 grid min-w-0 grid-cols-1 gap-3 rounded-xl border bg-muted/20 p-3 sm:grid-cols-2 sm:p-4">
+                
+              <div className="mb-5 grid min-w-0 grid-cols-1 gap-3 rounded-xl border bg-muted/20 p-3 sm:grid-cols-2 sm:p-4 lg:grid-cols-3">
+                <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+                  <label
+                    htmlFor="saved-image-search"
+                    className="text-sm font-medium"
+                  >
+                    Search saved images
+                  </label>
+
+                  <div className="relative mt-2">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+
+                    <input
+                      id="saved-image-search"
+                      type="search"
+                      value={searchQuery}
+                      onChange={(event) =>
+                        setSearchQuery(
+                          event.target.value,
+                        )
+                      }
+                      placeholder="Search listing, style, or instructions"
+                      className="h-10 w-full min-w-0 rounded-xl border bg-background pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-3 focus:ring-ring/30"
+                    />
+                  </div>
+                </div>
                 <div className="min-w-0">
                   <label
                     htmlFor="saved-image-listing-filter"
@@ -523,21 +567,22 @@ export default function SavedAiImageLibrary() {
         ) : images.length > 0 ? (
             <div className="rounded-xl border border-dashed p-6 text-center sm:p-10">
               <ImageIcon className="mx-auto size-9 text-muted-foreground" />
-                  
+
               <p className="mt-3 font-medium">
                 No images match these filters
               </p>
-                  
+
               <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
-                Select another listing or image
-                style to view saved results.
+                Try another search term, listing,
+                or image style.
               </p>
-                  
+
               <Button
                 type="button"
                 variant="outline"
                 className="mt-4"
                 onClick={() => {
+                  setSearchQuery("");
                   setListingFilter("all");
                   setStyleFilter("all");
                 }}
