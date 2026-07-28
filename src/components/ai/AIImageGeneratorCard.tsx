@@ -35,6 +35,16 @@ type GenerateImageResponse = {
   error?: string;
 };
 
+type GeneratedImageHistoryItem = {
+  id: string;
+  imageUrl: string;
+  mimeType: string;
+  style: EtsyImageStyle;
+  styleLabel: string;
+  customInstructions: string;
+  createdAt: string;
+};
+
 const imageStyles: {
   value: EtsyImageStyle;
   label: string;
@@ -118,6 +128,9 @@ export default function AIImageGeneratorCard({
   const [generatedMimeType, setGeneratedMimeType] =
     useState("image/png");
 
+    const [generatedImages, setGeneratedImages] =
+    useState<GeneratedImageHistoryItem[]>([]);
+
   const [isGenerating, setIsGenerating] =
     useState(false);
 
@@ -187,11 +200,27 @@ export default function AIImageGeneratorCard({
         data.generatedImage.mimeType ||
         "image/png";
 
-      setGeneratedMimeType(mimeType);
+      const imageUrl =
+          `data:${mimeType};base64,${data.generatedImage.imageBase64}`;
 
-      setGeneratedImageUrl(
-        `data:${mimeType};base64,${data.generatedImage.imageBase64}`,
-      );
+        const historyItem: GeneratedImageHistoryItem = {
+          id: crypto.randomUUID(),
+          imageUrl,
+          mimeType,
+          style,
+          styleLabel: selectedStyle.label,
+          customInstructions:
+            customInstructions.trim(),
+          createdAt: new Date().toISOString(),
+        };
+
+        setGeneratedMimeType(mimeType);
+        setGeneratedImageUrl(imageUrl);
+
+        setGeneratedImages((currentImages) => [
+          historyItem,
+          ...currentImages,
+        ]);
     } catch (generationError) {
       setError(
         generationError instanceof Error
@@ -203,22 +232,47 @@ export default function AIImageGeneratorCard({
     }
   }
 
-  function downloadGeneratedImage() {
-    if (!generatedImageUrl) {
-      return;
-    }
+  function downloadImage({
+  imageUrl,
+  mimeType,
+  imageStyle,
+}: {
+  imageUrl: string;
+  mimeType: string;
+  imageStyle: EtsyImageStyle;
+}) {
+  const link = document.createElement("a");
 
-    const link = document.createElement("a");
-
-    link.href = generatedImageUrl;
-    link.download = `selleros-${style}-image.${getDownloadExtension(
-      generatedMimeType,
+  link.href = imageUrl;
+  link.download =
+    `selleros-${imageStyle}-image.${getDownloadExtension(
+      mimeType,
     )}`;
 
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function downloadGeneratedImage() {
+  if (!generatedImageUrl) {
+    return;
   }
+
+  downloadImage({
+    imageUrl: generatedImageUrl,
+    mimeType: generatedMimeType,
+    imageStyle: style,
+  });
+}
+
+function removeGeneratedImage(id: string) {
+  setGeneratedImages((currentImages) =>
+    currentImages.filter(
+      (image) => image.id !== id,
+    ),
+  );
+}
 
   if (usableImages.length === 0) {
     return (
@@ -430,6 +484,104 @@ export default function AIImageGeneratorCard({
                 alt={`Generated ${selectedStyle.label} image for ${listing.title}`}
                 className="h-auto w-full object-contain"
               />
+            </div>
+          </section>
+        ) : null}
+
+        {generatedImages.length > 0 ? (
+          <section className="space-y-3 border-t pt-6">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium">
+                  Generation history
+                </p>
+                
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Images generated during this session.
+                </p>
+              </div>
+                
+              <span className="text-xs text-muted-foreground">
+                {generatedImages.length}{" "}
+                {generatedImages.length === 1
+                  ? "image"
+                  : "images"}
+              </span>
+            </div>
+                
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {generatedImages.map((generatedImage) => (
+                <article
+                  key={generatedImage.id}
+                  className="overflow-hidden rounded-xl border bg-card"
+                >
+                  <div className="aspect-square bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={generatedImage.imageUrl}
+                      alt={`Generated ${generatedImage.styleLabel} image for ${listing.title}`}
+                      className="size-full object-contain"
+                    />
+                  </div>
+            
+                  <div className="space-y-3 p-3">
+                    <div>
+                      <p className="text-sm font-medium">
+                        {generatedImage.styleLabel}
+                      </p>
+            
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {new Date(
+                          generatedImage.createdAt,
+                        ).toLocaleString()}
+                      </p>
+                    </div>
+                    
+                    {generatedImage.customInstructions ? (
+                      <p className="line-clamp-2 text-xs text-muted-foreground">
+                        {
+                          generatedImage.customInstructions
+                        }
+                      </p>
+                    ) : null}
+        
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() =>
+                          downloadImage({
+                            imageUrl:
+                              generatedImage.imageUrl,
+                            mimeType:
+                              generatedImage.mimeType,
+                            imageStyle:
+                              generatedImage.style,
+                          })
+                        }
+                      >
+                        <Download className="size-4" />
+                        Download
+                      </Button>
+                    
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          removeGeneratedImage(
+                            generatedImage.id,
+                          )
+                        }
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                </article>
+              ))}
             </div>
           </section>
         ) : null}
