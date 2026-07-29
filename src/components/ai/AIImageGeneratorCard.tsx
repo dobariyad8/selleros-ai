@@ -8,7 +8,11 @@ import {
   Save,
   Sparkles,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 
 import type { EtsyImageStyle } from "@/lib/ai/prompts";
 import type { SellerOsListing } from "@/lib/etsy/types";
@@ -31,12 +36,26 @@ type Props = {
   listing: SellerOsListing;
 };
 
+type ImageUsage = {
+  used: number;
+  limit: number;
+  remaining: number;
+  billingMonth: string;
+};
+
 type GenerateImageResponse = {
   success: boolean;
   generatedImage?: {
     imageBase64: string;
     mimeType: string;
   };
+  usage?: ImageUsage;
+  error?: string;
+};
+
+type ImageUsageResponse = {
+  success: boolean;
+  usage?: ImageUsage;
   error?: string;
 };
 
@@ -151,6 +170,15 @@ export default function AIImageGeneratorCard({
   const [isGenerating, setIsGenerating] =
     useState(false);
 
+  const [imageUsage, setImageUsage] =
+    useState<ImageUsage | null>(null);
+
+  const [isLoadingUsage, setIsLoadingUsage] =
+    useState(true);
+
+  const [usageError, setUsageError] =
+    useState("");
+
   const [error, setError] = useState("");
 
   const selectedStyle =
@@ -158,10 +186,78 @@ export default function AIImageGeneratorCard({
       (imageStyle) => imageStyle.value === style,
     ) ?? imageStyles[0];
 
+  const hasNoCredits =
+    imageUsage !== null &&
+    imageUsage.remaining <= 0;
+
+  const usagePercentage =
+    imageUsage && imageUsage.limit > 0
+      ? Math.min(
+          Math.round(
+            (imageUsage.used /
+              imageUsage.limit) *
+              100,
+          ),
+          100,
+        )
+      : 0;
+
+  async function loadImageUsage() {
+    setIsLoadingUsage(true);
+    setUsageError("");
+
+    try {
+      const response = await fetch(
+        "/api/ai/image-usage",
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
+
+      const data =
+        (await response.json()) as ImageUsageResponse;
+
+      if (
+        !response.ok ||
+        !data.success ||
+        !data.usage
+      ) {
+        throw new Error(
+          data.error ||
+            "Image credits could not be loaded.",
+        );
+      }
+
+      setImageUsage(data.usage);
+    } catch (loadError) {
+      setUsageError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Image credits could not be loaded.",
+      );
+    } finally {
+      setIsLoadingUsage(false);
+    }
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadImageUsage();
+  }, []);
+
   async function generateImage() {
     if (!selectedImageUrl) {
       setError(
         "Select a source image before generating.",
+      );
+
+      return;
+    }
+
+    if (hasNoCredits) {
+      setError(
+        "You have reached your monthly AI image-generation limit.",
       );
 
       return;
@@ -202,6 +298,10 @@ export default function AIImageGeneratorCard({
 
       const data =
         (await response.json()) as GenerateImageResponse;
+
+      if (data.usage) {
+        setImageUsage(data.usage);
+      }
 
       if (
         !response.ok ||
@@ -402,6 +502,94 @@ export default function AIImageGeneratorCard({
       </CardHeader>
 
       <CardContent className="space-y-6">
+        <section
+          className={`rounded-xl border p-4 ${
+            hasNoCredits
+              ? "border-destructive/30 bg-destructive/5"
+              : "bg-muted/20"
+          }`}
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">
+                AI image credits
+              </p>
+
+              {isLoadingUsage ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Loading your monthly usage…
+                </p>
+              ) : imageUsage ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {imageUsage.used} used ·{" "}
+                  {imageUsage.remaining} remaining ·{" "}
+                  {imageUsage.limit} monthly
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Your usage balance is currently
+                  unavailable.
+                </p>
+              )}
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isLoadingUsage}
+              onClick={() =>
+                void loadImageUsage()
+              }
+            >
+              <RefreshCw
+                className={
+                  isLoadingUsage
+                    ? "size-4 animate-spin"
+                    : "size-4"
+                }
+              />
+
+              Refresh
+            </Button>
+          </div>
+
+          {imageUsage ? (
+            <>
+              <Progress
+                value={usagePercentage}
+                className="mt-4"
+              />
+
+              <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+                <span>
+                  {imageUsage.used} used
+                </span>
+
+                <span>
+                  {imageUsage.remaining} remaining
+                </span>
+              </div>
+            </>
+          ) : null}
+
+          {usageError ? (
+            <div
+              role="alert"
+              className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+            >
+              {usageError}
+            </div>
+          ) : null}
+
+          {hasNoCredits ? (
+            <p className="mt-3 text-sm font-medium text-destructive">
+              Your monthly image-generation limit
+              has been reached.
+            </p>
+          ) : null}
+        </section>
+
         <section>
           <p className="text-sm font-medium">
             1. Choose a source image
@@ -510,7 +698,10 @@ export default function AIImageGeneratorCard({
           type="button"
           onClick={generateImage}
           disabled={
-            isGenerating || !selectedImageUrl
+            isGenerating ||
+            isLoadingUsage ||
+            !selectedImageUrl ||
+            hasNoCredits
           }
           className="w-full"
           size="lg"
@@ -519,6 +710,11 @@ export default function AIImageGeneratorCard({
             <>
               <LoaderCircle className="size-4 animate-spin" />
               Generating image…
+            </>
+          ) : hasNoCredits ? (
+            <>
+              <Sparkles className="size-4" />
+              Monthly limit reached
             </>
           ) : generatedImageUrl ? (
             <>

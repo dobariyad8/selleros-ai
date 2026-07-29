@@ -4,7 +4,9 @@ type RequiredEnvironmentVariable =
   | "ETSY_API_KEY"
   | "ETSY_SHARED_SECRET"
   | "ETSY_REDIRECT_URI"
-  | "OPENAI_API_KEY";
+  | "OPENAI_API_KEY"
+  | "SUPABASE_URL"
+  | "SUPABASE_SECRET_KEY";
 
 function getRequiredEnvironmentVariable(
   name: RequiredEnvironmentVariable,
@@ -42,6 +44,18 @@ export const serverEnv = {
   get openAiApiKey() {
     return getRequiredEnvironmentVariable(
       "OPENAI_API_KEY",
+    );
+  },
+
+  get supabaseUrl() {
+    return getRequiredEnvironmentVariable(
+      "SUPABASE_URL",
+    );
+  },
+
+  get supabaseSecretKey() {
+    return getRequiredEnvironmentVariable(
+      "SUPABASE_SECRET_KEY",
     );
   },
 

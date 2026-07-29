@@ -1,5 +1,9 @@
-import { NextResponse } from "next/server";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
 
+import { consumeImageCredit } from "@/lib/ai/imageUsage";
 import {
   generateEtsyImage,
   type GenerateEtsyImageInput,
@@ -61,7 +65,27 @@ function isValidListing(
   );
 }
 
-export async function POST(request: Request) {
+function getEtsyUserId(
+  request: NextRequest,
+) {
+  const accessToken =
+    request.cookies.get(
+      "etsy_access_token",
+    )?.value;
+
+  if (!accessToken) {
+    return null;
+  }
+
+  const userId =
+    accessToken.split(".")[0]?.trim();
+
+  return userId || null;
+}
+
+export async function POST(
+  request: NextRequest,
+) {
   try {
     const body =
       (await request.json()) as GenerateImageRequest;
@@ -125,6 +149,48 @@ export async function POST(request: Request) {
       );
     }
 
+    const etsyUserId =
+      getEtsyUserId(request);
+
+    if (!etsyUserId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Connect your Etsy shop before generating images.",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    const usage =
+      await consumeImageCredit(
+        etsyUserId,
+      );
+
+    if (!usage.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "You have reached your monthly AI image-generation limit.",
+          usage: {
+            used: usage.used,
+            limit: usage.limit,
+            remaining:
+              usage.remaining,
+            billingMonth:
+              usage.billingMonth,
+          },
+        },
+        {
+          status: 429,
+        },
+      );
+    }
+
     const generatedImage =
       await generateEtsyImage({
         listing: body.listing,
@@ -139,6 +205,14 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       generatedImage,
+      usage: {
+        used: usage.used,
+        limit: usage.limit,
+        remaining:
+          usage.remaining,
+        billingMonth:
+          usage.billingMonth,
+      },
     });
   } catch (error) {
     const message =
