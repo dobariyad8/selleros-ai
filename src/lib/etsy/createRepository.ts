@@ -1,35 +1,37 @@
+import "server-only";
+
 import { NextRequest } from "next/server";
-import { EtsyRepository } from "./repository";
+
+import {
+  getEtsyAuthSession,
+  type EtsyAuthSession,
+} from "@/lib/etsy/auth";
+import { EtsyRepository } from "@/lib/etsy/repository";
 import { serverEnv } from "@/lib/env/server";
 
-export function createEtsyRepository(
-  request: NextRequest
-): EtsyRepository {
-  const apiKey = serverEnv.etsyApiKey;
-  const sharedSecret = serverEnv.etsySharedSecret;
+export type EtsyRepositorySession = {
+  repository: EtsyRepository;
+  authSession: EtsyAuthSession;
+};
 
-  if (!apiKey || !sharedSecret) {
-    throw new Error(
-      "ETSY_API_KEY or ETSY_SHARED_SECRET is missing."
-    );
-  }
+export async function createEtsyRepository(
+  request: NextRequest,
+): Promise<EtsyRepositorySession> {
+  const authSession =
+    await getEtsyAuthSession(request);
 
-  console.log(
-  "Available cookies:",
-  request.cookies.getAll()
-    );
-  const accessToken =
-    request.cookies.get("etsy_access_token")?.value;
+  const repository =
+    new EtsyRepository({
+      apiKey:
+        serverEnv.etsyApiKey,
+      sharedSecret:
+        serverEnv.etsySharedSecret,
+      accessToken:
+        authSession.accessToken,
+    });
 
-  if (!accessToken) {
-    throw new Error(
-      "No Etsy access token was found."
-    );
-  }
-
-  return new EtsyRepository({
-    apiKey,
-    sharedSecret,
-    accessToken,
-  });
+  return {
+    repository,
+    authSession,
+  };
 }

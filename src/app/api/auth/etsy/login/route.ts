@@ -34,6 +34,7 @@ export async function GET() {
   const scopes = [
     "shops_r",
     "listings_r",
+    "listings_w",
     "transactions_r",
   ].join(" ");
 

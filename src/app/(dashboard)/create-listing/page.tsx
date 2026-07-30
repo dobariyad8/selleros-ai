@@ -28,6 +28,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import ListingImageGenerator from "@/components/create-listing/ListingImageGenerator";
+import EtsyExportPanel from "@/components/create-listing/EtsyExportPanel";
 
 type UploadedImage = {
   id: string;
@@ -1407,14 +1408,14 @@ export default function CreateListingPage() {
                   <p className="font-medium">
                     Save your edits
                   </p>
-                
+
                   <p className="mt-1 text-sm text-muted-foreground">
                     Save changes to the product details,
                     title, description, tags, materials,
                     highlights, and image plan.
                   </p>
                 </div>
-                
+
                 <Button
                   type="button"
                   size="lg"
@@ -1784,6 +1785,9 @@ export default function CreateListingPage() {
               </CardContent>
             </Card>
           )}
+          <EtsyExportPanel
+              projectId={projectId}
+            />
         </div>
       ) : null}
     </div>

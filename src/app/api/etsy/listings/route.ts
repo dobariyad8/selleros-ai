@@ -2,18 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createEtsyRepository } from "@/lib/etsy/createRepository";
 import { EtsyApiError } from "@/lib/etsy/client";
+import { applyEtsyAuthCookies } from "@/lib/etsy/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const repository = createEtsyRepository(request);
+    const {
+        repository,
+        authSession,
+      } = await createEtsyRepository(
+        request,
+      );
 
-    const result =
-      await repository.getActiveListings();
+      const result =
+        await repository.getActiveListings();
 
-    return NextResponse.json({
-      success: true,
-      ...result,
-    });
+      const response =
+        NextResponse.json({
+          success: true,
+          ...result,
+        });
+      
+      return applyEtsyAuthCookies(
+        response,
+        authSession,
+      );
   } catch (error) {
     console.error(error);
 
