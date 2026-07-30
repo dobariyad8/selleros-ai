@@ -1,6 +1,7 @@
 import {
   BarChart3,
   CreditCard,
+  FilePlus2,
   FileSearch,
   ImageIcon,
   LayoutDashboard,
@@ -29,6 +30,11 @@ export const navigationItems: NavigationItem[] = [
     name: "Listings",
     href: "/listings",
     icon: ListChecks,
+  },
+  {
+    name: "Create Listing",
+    href: "/create-listing",
+    icon: FilePlus2,
   },
   {
     name: "AI Auditor",
@@ -60,7 +66,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/images",
     icon: ImageIcon,
   },
-    {
+  {
     name: "Shop Profile",
     href: "/shop-profile",
     icon: Store,

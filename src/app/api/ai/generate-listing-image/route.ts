@@ -9,64 +9,29 @@ import {
   type ImageUsageResult,
 } from "@/lib/ai/imageUsage";
 import {
-  generateEtsyImage,
-  type GenerateEtsyImageInput,
-} from "@/lib/ai/generateEtsyImage";
-import type { EtsyImageStyle } from "@/lib/ai/prompts";
+  generateListingImage,
+  type ListingImageType,
+} from "@/lib/ai/generateListingImage";
 
-type GenerateImageRequest = {
-  listing?: unknown;
-  style?: unknown;
-  customInstructions?: unknown;
-};
+const validImageTypes =
+  new Set<ListingImageType>([
+    "studio",
+    "lifestyle",
+    "detail",
+    "scale",
+    "gift",
+    "seasonal",
+  ]);
 
-const validStyles: EtsyImageStyle[] = [
-  "studio",
-  "lifestyle",
-  "gift",
-  "seasonal",
-  "thumbnail",
-];
+function readFormText(
+  formData: FormData,
+  name: string,
+) {
+  const value = formData.get(name);
 
-function isValidStyle(
-  value: unknown,
-): value is EtsyImageStyle {
-  return (
-    typeof value === "string" &&
-    validStyles.includes(
-      value as EtsyImageStyle,
-    )
-  );
-}
-
-function isValidListing(
-  value: unknown,
-): value is GenerateEtsyImageInput["listing"] {
-  if (
-    !value ||
-    typeof value !== "object"
-  ) {
-    return false;
-  }
-
-  const listing = value as Record<
-    string,
-    unknown
-  >;
-
-  return (
-    typeof listing.title === "string" &&
-    typeof listing.description ===
-      "string" &&
-    Array.isArray(listing.tags) &&
-    listing.tags.every(
-      (tag) => typeof tag === "string",
-    ) &&
-    Array.isArray(listing.imageUrls) &&
-    listing.imageUrls.every(
-      (url) => typeof url === "string",
-    )
-  );
+  return typeof value === "string"
+    ? value.trim()
+    : "";
 }
 
 function getEtsyUserId(
@@ -108,80 +73,119 @@ export async function POST(
     | null = null;
 
   try {
-    const body =
-      (await request.json()) as GenerateImageRequest;
-
-    if (!isValidListing(body.listing)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "A valid listing with at least one image is required.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    if (!isValidStyle(body.style)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "A valid image style is required.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    if (
-      body.customInstructions !==
-        undefined &&
-      typeof body.customInstructions !==
-        "string"
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Custom instructions must be text.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    if (
-      body.listing.imageUrls.length === 0
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "At least one source image is required.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    etsyUserId =
-      getEtsyUserId(request);
+    etsyUserId = getEtsyUserId(request);
 
     if (!etsyUserId) {
       return NextResponse.json(
         {
           success: false,
           error:
-            "Connect your Etsy shop before generating images.",
+            "Connect your Etsy shop before generating listing images.",
         },
         {
           status: 401,
+        },
+      );
+    }
+
+    const formData =
+      await request.formData();
+
+    const sourceImage =
+      formData.get("sourceImage");
+
+    const productTitle =
+      readFormText(
+        formData,
+        "productTitle",
+      );
+
+    const productDescription =
+      readFormText(
+        formData,
+        "productDescription",
+      );
+
+    const imageTypeValue =
+      readFormText(
+        formData,
+        "imageType",
+      );
+
+    const conceptTitle =
+      readFormText(
+        formData,
+        "conceptTitle",
+      );
+
+    const conceptDescription =
+      readFormText(
+        formData,
+        "conceptDescription",
+      );
+
+    const generationInstructions =
+      readFormText(
+        formData,
+        "generationInstructions",
+      );
+
+    if (!(sourceImage instanceof File)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "A source product image is required.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    if (
+      !sourceImage.type.startsWith(
+        "image/",
+      )
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "The uploaded source file must be an image.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    if (!productTitle) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "A product title is required.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    if (
+      !validImageTypes.has(
+        imageTypeValue as ListingImageType,
+      )
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "A valid listing image type is required.",
+        },
+        {
+          status: 400,
         },
       );
     }
@@ -207,14 +211,15 @@ export async function POST(
     }
 
     const generatedImage =
-      await generateEtsyImage({
-        listing: body.listing,
-        style: body.style,
-        customInstructions:
-          typeof body.customInstructions ===
-          "string"
-            ? body.customInstructions
-            : "",
+      await generateListingImage({
+        sourceImage,
+        productTitle,
+        productDescription,
+        imageType:
+          imageTypeValue as ListingImageType,
+        conceptTitle,
+        conceptDescription,
+        generationInstructions,
       });
 
     return NextResponse.json({
@@ -227,10 +232,10 @@ export async function POST(
     const message =
       error instanceof Error
         ? error.message
-        : "The Etsy image could not be generated.";
+        : "The listing image could not be generated.";
 
     console.error(
-      "Etsy image generation failed:",
+      "Listing image generation failed:",
       error,
     );
 
@@ -250,7 +255,7 @@ export async function POST(
           );
       } catch (refundError) {
         console.error(
-          "Etsy image credit refund failed:",
+          "Listing image credit refund failed:",
           refundError,
         );
       }

@@ -19,6 +19,13 @@ type ImageUsageRpcRow = {
   remaining: number;
 };
 
+type ImageRefundRpcRow = {
+  refunded: boolean;
+  generation_count: number;
+  monthly_limit: number;
+  remaining: number;
+};
+
 type ImageUsageDatabaseRow = {
   generation_count: number;
   monthly_limit: number;
@@ -157,5 +164,64 @@ export async function consumeImageCredit(
     limit: row.monthly_limit,
     remaining: row.remaining,
     billingMonth,
+  };
+}
+
+export async function refundImageCredit(
+  etsyUserId: string,
+  billingMonth: string,
+): Promise<ImageUsageResult> {
+  const cleanedUserId =
+    cleanEtsyUserId(etsyUserId);
+
+  const cleanedBillingMonth =
+    billingMonth.trim();
+
+  if (!cleanedBillingMonth) {
+    throw new Error(
+      "A billing month is required to refund an image credit.",
+    );
+  }
+
+  const { data, error } =
+    await supabaseAdmin.rpc(
+      "refund_ai_image_credit",
+      {
+        p_etsy_user_id: cleanedUserId,
+        p_billing_month:
+          cleanedBillingMonth,
+      },
+    );
+
+  if (error) {
+    console.error(
+      "Image credit refund failed:",
+      error,
+    );
+
+    throw new Error(
+      "The image-generation credit could not be refunded.",
+    );
+  }
+
+  const row = Array.isArray(data)
+    ? (data[0] as
+        | ImageRefundRpcRow
+        | undefined)
+    : undefined;
+
+  if (!row) {
+    throw new Error(
+      "No image-credit refund result was returned.",
+    );
+  }
+
+  return {
+    allowed: row.remaining > 0,
+    used: row.generation_count,
+    limit: row.monthly_limit,
+    remaining: row.remaining,
+    billingMonth:
+      cleanedBillingMonth,
   };
 }

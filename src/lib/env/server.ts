@@ -6,7 +6,8 @@ type RequiredEnvironmentVariable =
   | "ETSY_REDIRECT_URI"
   | "OPENAI_API_KEY"
   | "SUPABASE_URL"
-  | "SUPABASE_SECRET_KEY";
+  | "SUPABASE_SECRET_KEY"
+  | "CRON_SECRET";
 
 function getRequiredEnvironmentVariable(
   name: RequiredEnvironmentVariable,
@@ -56,6 +57,12 @@ export const serverEnv = {
   get supabaseSecretKey() {
     return getRequiredEnvironmentVariable(
       "SUPABASE_SECRET_KEY",
+    );
+  },
+
+  get cronSecret() {
+    return getRequiredEnvironmentVariable(
+      "CRON_SECRET",
     );
   },
 
