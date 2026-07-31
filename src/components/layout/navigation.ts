@@ -1,6 +1,7 @@
 import {
   BarChart3,
   CreditCard,
+  FileClock,
   FilePlus2,
   FileSearch,
   FolderKanban,
@@ -62,6 +63,12 @@ export const navigationItems: NavigationItem[] = [
         name: "Listing Projects",
         href: "/listing-projects",
         icon: FolderKanban,
+      },
+      {
+        type: "link",
+        name: "Export History",
+        href: "/export-history",
+        icon: FileClock,
       },
     ],
   },

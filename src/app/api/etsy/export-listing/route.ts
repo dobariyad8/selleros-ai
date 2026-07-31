@@ -746,19 +746,130 @@ export async function POST(
       });
     }
 
-    const cleanupResult =
-      await deleteListingProject({
-        projectId,
+    const {
+      data: historyData,
+      error: historyError,
+    } = await supabaseAdmin
+      .from("etsy_export_history")
+      .insert({
+        etsy_user_id:
+          etsyUserId,
+        source_project_id:
+          projectId,
+        etsy_shop_id:
+          shop.shopId,
+        etsy_shop_name:
+          shop.shopName,
+        etsy_listing_id:
+          createdListingId,
+        listing_title:
+          title,
+        listing_url:
+          draft.url ?? null,
+        uploaded_image_count:
+          generatedImages.length,
+        etsy_state:
+          draft.state ?? "draft",
+        project_cleanup_completed:
+          false,
+      })
+      .select("id")
+      .single();
+  
+    if (
+      historyError ||
+      !historyData
+    ) {
+      console.error(
+        "Etsy export history save failed:",
+        historyError,
+      );
+  
+      throw new Error(
+        "The Etsy draft was created, but its export history could not be saved.",
+      );
+    }
+    
+    const exportHistoryId =
+      historyData.id as string;
+    
+    let projectDeleted =
+      false;
+    
+    let deletedStorageFileCount =
+      0;
+    
+    let projectCleanupError:
+      string | null = null;
+    
+    /*
+     * Project cleanup is handled separately from the Etsy export.
+     * A cleanup failure must not delete the completed Etsy draft.
+     */
+    try {
+      const cleanupResult =
+        await deleteListingProject({
+          projectId,
+          etsyUserId,
+        });
+    
+      projectDeleted =
+        true;
+    
+      deletedStorageFileCount =
+        cleanupResult.deletedStorageFileCount;
+    } catch (cleanupError) {
+      projectCleanupError =
+        cleanupError instanceof Error
+          ? cleanupError.message
+          : "The SellerOS project cleanup failed.";
+    
+      console.error(
+        "Exported listing project cleanup failed:",
+        {
+          projectId,
+          exportHistoryId,
+          listingId:
+            createdListingId,
+          cleanupError,
+        },
+      );
+    }
+    
+    const {
+      error: historyUpdateError,
+    } = await supabaseAdmin
+      .from("etsy_export_history")
+      .update({
+        project_cleanup_completed:
+          projectDeleted,
+        project_cleanup_error:
+          projectCleanupError,
+      })
+      .eq(
+        "id",
+        exportHistoryId,
+      )
+      .eq(
+        "etsy_user_id",
         etsyUserId,
-      });
-
+      );
+  
+    if (historyUpdateError) {
+      console.error(
+        "Etsy export history cleanup status update failed:",
+        historyUpdateError,
+      );
+    }
+    
     const response =
       NextResponse.json({
         success: true,
         projectId,
-        projectDeleted: true,
-        deletedStorageFileCount:
-          cleanupResult.deletedStorageFileCount,
+        exportHistoryId,
+        projectDeleted,
+        projectCleanupError,
+        deletedStorageFileCount,
         shopId:
           shop.shopId,
         shopName:
@@ -770,10 +881,12 @@ export async function POST(
         uploadedImageCount:
           generatedImages.length,
         state:
-          draft.state ??
-          "draft",
+          draft.state ?? "draft",
+        message: projectDeleted
+          ? "The Etsy draft was created successfully."
+          : "The Etsy draft was created successfully, but the SellerOS project could not be deleted automatically.",
       });
-
+  
     return applyEtsyAuthCookies(
       response,
       authSession,
@@ -787,13 +900,13 @@ export async function POST(
           error,
         },
       );
-  
+
       let partialDraftDeleted =
         false;
-  
+
       let partialDraftDeleteError:
         unknown = null;
-  
+
       /*
        * When Etsy created the draft but a later step failed,
        * remove the incomplete Etsy draft before allowing a retry.
@@ -806,13 +919,13 @@ export async function POST(
           await etsyRepository.deleteListing(
             createdListingId,
           );
-      
+
           partialDraftDeleted =
             true;
         } catch (deleteError) {
           partialDraftDeleteError =
             deleteError;
-        
+
           console.error(
             "Incomplete Etsy draft cleanup failed:",
             {
@@ -823,7 +936,7 @@ export async function POST(
           );
         }
       }
-  
+
       if (
         projectId &&
         isValidUuid(projectId)
@@ -835,7 +948,7 @@ export async function POST(
         } = {
           status: "failed",
         };
-    
+
         if (
           createdListingId &&
           partialDraftDeleted
@@ -846,7 +959,7 @@ export async function POST(
            */
           updateData.etsy_listing_id =
             null;
-        
+
           updateData.etsy_listing_url =
             null;
         } else if (
@@ -859,7 +972,7 @@ export async function POST(
           updateData.etsy_listing_id =
             createdListingId;
         }
-    
+
         const {
           error: failureSaveError,
         } = await supabaseAdmin
@@ -869,7 +982,7 @@ export async function POST(
             "id",
             projectId,
           );
-      
+
         if (failureSaveError) {
           console.error(
             "Etsy export failure state could not be saved:",
@@ -877,10 +990,10 @@ export async function POST(
           );
         }
       }
-  
+
       let response =
         createErrorResponse(error);
-  
+
       if (
         createdListingId &&
         partialDraftDeleted
@@ -889,7 +1002,7 @@ export async function POST(
           error instanceof Error
             ? error.message
             : "The Etsy export failed.";
-    
+
         response =
           NextResponse.json(
             {
@@ -915,7 +1028,7 @@ export async function POST(
           error instanceof Error
             ? error.message
             : "The Etsy export failed.";
-    
+
         response =
           NextResponse.json(
             {
@@ -932,7 +1045,7 @@ export async function POST(
             },
           );
       }
-  
+
       return authSession
         ? applyEtsyAuthCookies(
             response,
