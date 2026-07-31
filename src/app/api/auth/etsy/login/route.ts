@@ -35,6 +35,7 @@ export async function GET() {
     "shops_r",
     "listings_r",
     "listings_w",
+    "listings_d",
     "transactions_r",
   ].join(" ");
 

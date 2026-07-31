@@ -21,9 +21,11 @@ import {
   deleteListingProject,
 } from "@/lib/listing-projects/deleteListingProject";
 
+import type {
+  EtsyRepository,
+} from "@/lib/etsy/repository";
+
 export const runtime = "nodejs";
-const EXPORT_ROUTE_VERSION =
-  "etsy-export-delete-project-v2";
 
 const LISTING_IMAGE_BUCKET =
   "listing-project-images";
@@ -233,15 +235,6 @@ function createErrorResponse(
   );
 }
 
-export async function GET() {
-  return NextResponse.json({
-    success: true,
-    routeVersion:
-      EXPORT_ROUTE_VERSION,
-    projectDeletionEnabled: true,
-  });
-}
-
 export async function POST(
   request: NextRequest,
 ) {
@@ -253,6 +246,9 @@ export async function POST(
   let createdListingId:
     | number
     | null = null;
+  let etsyRepository:
+      | EtsyRepository
+      | null = null;
 
   try {
     const body =
@@ -399,6 +395,8 @@ export async function POST(
       await createEtsyRepository(
         request,
       );
+
+    etsyRepository = repository;
 
     authSession =
       repositoryAuthSession;
@@ -781,48 +779,165 @@ export async function POST(
       authSession,
     );
   } catch (error) {
-    console.error(
-      "Etsy listing export failed:",
-      {
-        projectId,
-        createdListingId,
-        error,
-      },
-    );
-
-    if (
-      projectId &&
-      isValidUuid(projectId)
-    ) {
-      const updateData: {
-        status: string;
-        etsy_listing_id?: number;
-      } = {
-        status: "failed",
-      };
-
-      if (createdListingId) {
-        updateData.etsy_listing_id =
-          createdListingId;
-      }
-
-      await supabaseAdmin
-        .from("listing_projects")
-        .update(updateData)
-        .eq(
-          "id",
+      console.error(
+        "Etsy listing export failed:",
+        {
           projectId,
-        );
+          createdListingId,
+          error,
+        },
+      );
+  
+      let partialDraftDeleted =
+        false;
+  
+      let partialDraftDeleteError:
+        unknown = null;
+  
+      /*
+       * When Etsy created the draft but a later step failed,
+       * remove the incomplete Etsy draft before allowing a retry.
+       */
+      if (
+        createdListingId &&
+        etsyRepository
+      ) {
+        try {
+          await etsyRepository.deleteListing(
+            createdListingId,
+          );
+      
+          partialDraftDeleted =
+            true;
+        } catch (deleteError) {
+          partialDraftDeleteError =
+            deleteError;
+        
+          console.error(
+            "Incomplete Etsy draft cleanup failed:",
+            {
+              listingId:
+                createdListingId,
+              deleteError,
+            },
+          );
+        }
+      }
+  
+      if (
+        projectId &&
+        isValidUuid(projectId)
+      ) {
+        const updateData: {
+          status: string;
+          etsy_listing_id?: number | null;
+          etsy_listing_url?: string | null;
+        } = {
+          status: "failed",
+        };
+    
+        if (
+          createdListingId &&
+          partialDraftDeleted
+        ) {
+          /*
+           * The incomplete Etsy draft no longer exists,
+           * so clear its ID and permit a safe retry.
+           */
+          updateData.etsy_listing_id =
+            null;
+        
+          updateData.etsy_listing_url =
+            null;
+        } else if (
+          createdListingId
+        ) {
+          /*
+           * Preserve the Etsy ID when cleanup fails.
+           * Duplicate-export protection will block another draft.
+           */
+          updateData.etsy_listing_id =
+            createdListingId;
+        }
+    
+        const {
+          error: failureSaveError,
+        } = await supabaseAdmin
+          .from("listing_projects")
+          .update(updateData)
+          .eq(
+            "id",
+            projectId,
+          );
+      
+        if (failureSaveError) {
+          console.error(
+            "Etsy export failure state could not be saved:",
+            failureSaveError,
+          );
+        }
+      }
+  
+      let response =
+        createErrorResponse(error);
+  
+      if (
+        createdListingId &&
+        partialDraftDeleted
+      ) {
+        const originalMessage =
+          error instanceof Error
+            ? error.message
+            : "The Etsy export failed.";
+    
+        response =
+          NextResponse.json(
+            {
+              success: false,
+              error:
+                `${originalMessage} The incomplete Etsy draft was removed, and this project can be retried.`,
+              partialDraftDeleted: true,
+              deletedEtsyListingId:
+                createdListingId,
+            },
+            {
+              status:
+                error instanceof EtsyApiError
+                  ? error.status
+                  : 500,
+            },
+          );
+      } else if (
+        createdListingId &&
+        partialDraftDeleteError
+      ) {
+        const originalMessage =
+          error instanceof Error
+            ? error.message
+            : "The Etsy export failed.";
+    
+        response =
+          NextResponse.json(
+            {
+              success: false,
+              error:
+                `${originalMessage} Etsy draft ${createdListingId} may still exist because automatic cleanup failed. Do not retry this project until that draft is removed.`,
+              partialDraftDeleted:
+                false,
+              etsyListingId:
+                createdListingId,
+            },
+            {
+              status: 500,
+            },
+          );
+      }
+  
+      return authSession
+        ? applyEtsyAuthCookies(
+            response,
+            authSession,
+          )
+        : response;
     }
-
-    const response =
-      createErrorResponse(error);
-
-    return authSession
-      ? applyEtsyAuthCookies(
-          response,
-          authSession,
-        )
-      : response;
-  }
 }

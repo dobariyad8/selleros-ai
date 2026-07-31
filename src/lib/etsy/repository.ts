@@ -468,27 +468,27 @@ async getSellerTaxonomy(): Promise<EtsyTaxonomyNode[]> {
       "item_weight",
       String(input.itemWeight),
     );
-    
+
     body.append(
       "item_weight_unit",
       input.itemWeightUnit,
     );
-    
+
     body.append(
       "item_length",
       String(input.itemLength),
     );
-    
+
     body.append(
       "item_width",
       String(input.itemWidth),
     );
-    
+
     body.append(
       "item_height",
       String(input.itemHeight),
     );
-    
+
     body.append(
       "item_dimensions_unit",
       input.itemDimensionsUnit,
@@ -534,6 +534,26 @@ async getSellerTaxonomy(): Promise<EtsyTaxonomyNode[]> {
     return this.client.postForm<EtsyDraftListingResult>(
       `${ETSY_API_BASE_URL}/shops/${input.shopId}/listings?legacy=false`,
       body,
+    );
+  }
+
+  /**
+   * Deletes an Etsy listing, including an incomplete draft.
+   */
+  async deleteListing(
+    listingId: number,
+  ): Promise<void> {
+    if (
+      !Number.isInteger(listingId) ||
+      listingId < 1
+    ) {
+      throw new Error(
+        "A valid Etsy listing ID is required.",
+      );
+    }
+  
+    await this.client.delete<Record<string, never>>(
+      `${ETSY_API_BASE_URL}/listings/${listingId}`,
     );
   }
 
