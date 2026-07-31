@@ -21,6 +21,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+import { useRouter } from "next/navigation";
+
 type EtsyShippingProfile = {
   shipping_profile_id: number;
   title: string;
@@ -71,6 +73,8 @@ type EtsyExportResponse = {
   uploadedImageCount?: number;
   state?: string;
   error?: string;
+  projectDeleted?: boolean;
+  deletedStorageFileCount?: number;
 };
 
 type FlattenedTaxonomyNode = {
@@ -84,7 +88,6 @@ type FlattenedTaxonomyNode = {
 type EtsyExportPanelProps = {
   projectId: string | null;
   existingListingId?: number | null;
-  existingListingUrl?: string | null;
 };
 
 const inputClassName =
@@ -158,8 +161,8 @@ function formatProcessingRange(
 export default function EtsyExportPanel({
   projectId,
   existingListingId = null,
-  existingListingUrl = null,
 }: EtsyExportPanelProps) {
+    const router = useRouter();
   const [
     shippingProfiles,
     setShippingProfiles,
@@ -246,16 +249,8 @@ export default function EtsyExportPanel({
 
   const [
     exportedListingId,
-    setExportedListingId,
   ] = useState<number | null>(
     existingListingId,
-  );
-
-  const [
-    exportedListingUrl,
-    setExportedListingUrl,
-  ] = useState<string | null>(
-    existingListingUrl,
   );
 
   const flattenedTaxonomy =
@@ -548,19 +543,23 @@ export default function EtsyExportPanel({
         );
       }
 
-      setExportedListingId(
-        data.listingId,
-      );
+      if (!data.projectDeleted) {
+          throw new Error(
+            "The Etsy draft was created, but the SellerOS project was not removed.",
+          );
+        }
 
-      setExportedListingUrl(
-        data.listingUrl ?? null,
-      );
+        router.replace(
+          `/listing-projects?etsyExported=true&listingId=${encodeURIComponent(
+            String(data.listingId),
+          )}&imageCount=${encodeURIComponent(
+            String(
+              data.uploadedImageCount ?? 0,
+            ),
+          )}`,
+        );
 
-      setMessage(
-        `Etsy draft ${data.listingId} was created with ${
-          data.uploadedImageCount ?? 0
-        } images.`,
-      );
+        router.refresh();
     } catch (exportError) {
       setError(
         exportError instanceof Error

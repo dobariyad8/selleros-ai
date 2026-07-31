@@ -17,7 +17,13 @@ import {
   supabaseAdmin,
 } from "@/lib/supabase/server";
 
+import {
+  deleteListingProject,
+} from "@/lib/listing-projects/deleteListingProject";
+
 export const runtime = "nodejs";
+const EXPORT_ROUTE_VERSION =
+  "etsy-export-delete-project-v2";
 
 const LISTING_IMAGE_BUCKET =
   "listing-project-images";
@@ -225,6 +231,15 @@ function createErrorResponse(
             : 500,
     },
   );
+}
+
+export async function GET() {
+  return NextResponse.json({
+    success: true,
+    routeVersion:
+      EXPORT_ROUTE_VERSION,
+    projectDeletionEnabled: true,
+  });
 }
 
 export async function POST(
@@ -602,11 +617,11 @@ export async function POST(
         itemWeightUnit:
           itemWeightUnit as
             (typeof allowedWeightUnits)[number],
-            
+
         itemLength,
         itemWidth,
         itemHeight,
-            
+
         itemDimensionsUnit:
           itemDimensionsUnit as
             (typeof allowedDimensionUnits)[number],
@@ -733,38 +748,19 @@ export async function POST(
       });
     }
 
-    const {
-      error: completionError,
-    } = await supabaseAdmin
-      .from("listing_projects")
-      .update({
-        status: "exported",
-        etsy_listing_id:
-          createdListingId,
-        etsy_listing_url:
-          draft.url ?? null,
-      })
-      .eq("id", projectId)
-      .eq(
-        "etsy_user_id",
+    const cleanupResult =
+      await deleteListingProject({
+        projectId,
         etsyUserId,
-      );
-
-    if (completionError) {
-      console.error(
-        "Etsy export completion save failed:",
-        completionError,
-      );
-
-      throw new Error(
-        "The Etsy draft was created, but SellerOS could not save the completed export status.",
-      );
-    }
+      });
 
     const response =
       NextResponse.json({
         success: true,
         projectId,
+        projectDeleted: true,
+        deletedStorageFileCount:
+          cleanupResult.deletedStorageFileCount,
         shopId:
           shop.shopId,
         shopName:

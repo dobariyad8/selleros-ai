@@ -377,6 +377,7 @@ export default function ListingImageGenerator({
   useEffect(() => {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   void loadSavedImages();
+// eslint-disable-next-line react-hooks/exhaustive-deps
 }, [projectId, initialImageStates]);
 
   async function saveGeneratedImage({
