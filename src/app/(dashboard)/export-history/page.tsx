@@ -8,6 +8,7 @@ import {
   LoaderCircle,
   RefreshCw,
   Store,
+  Trash2,
 } from "lucide-react";
 import {
   useCallback,
@@ -42,6 +43,15 @@ type ExportHistoryItem = {
 type ExportHistoryResponse = {
   success: boolean;
   exports?: ExportHistoryItem[];
+  error?: string;
+};
+
+type RetryCleanupResponse = {
+  success: boolean;
+  historyId?: string;
+  cleanupCompleted?: boolean;
+  projectAlreadyMissing?: boolean;
+  deletedStorageFileCount?: number;
   error?: string;
 };
 
@@ -94,6 +104,11 @@ export default function ExportHistoryPage() {
   const [isLoading, setIsLoading] =
     useState(true);
 
+  const [
+    retryingCleanupId,
+    setRetryingCleanupId,
+  ] = useState<string | null>(null);
+
   const [error, setError] =
     useState("");
 
@@ -138,6 +153,84 @@ export default function ExportHistoryPage() {
       }
     }, []);
 
+  async function retryCleanup(
+    historyId: string,
+  ) {
+    setRetryingCleanupId(
+      historyId,
+    );
+
+    setError("");
+
+    try {
+      const response = await fetch(
+        `/api/etsy/export-history/${encodeURIComponent(
+          historyId,
+        )}/retry-cleanup`,
+        {
+          method: "POST",
+        },
+      );
+
+      const data =
+        (await response.json()) as RetryCleanupResponse;
+
+      if (
+        !response.ok ||
+        !data.success ||
+        !data.cleanupCompleted
+      ) {
+        throw new Error(
+          data.error ||
+            "The SellerOS project cleanup could not be completed.",
+        );
+      }
+
+      setExports(
+        (currentExports) =>
+          currentExports.map(
+            (exportItem) =>
+              exportItem.id ===
+              historyId
+                ? {
+                    ...exportItem,
+                    projectCleanupCompleted:
+                      true,
+                    projectCleanupError:
+                      null,
+                  }
+                : exportItem,
+          ),
+      );
+    } catch (cleanupError) {
+      const message =
+        cleanupError instanceof Error
+          ? cleanupError.message
+          : "The SellerOS project cleanup could not be completed.";
+
+      setError(message);
+
+      setExports(
+        (currentExports) =>
+          currentExports.map(
+            (exportItem) =>
+              exportItem.id ===
+              historyId
+                ? {
+                    ...exportItem,
+                    projectCleanupError:
+                      message,
+                  }
+                : exportItem,
+          ),
+      );
+    } finally {
+      setRetryingCleanupId(
+        null,
+      );
+    }
+  }
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadExportHistory();
@@ -166,7 +259,10 @@ export default function ExportHistoryPage() {
         <Button
           type="button"
           variant="outline"
-          disabled={isLoading}
+          disabled={
+            isLoading ||
+            retryingCleanupId !== null
+          }
           onClick={() =>
             void loadExportHistory()
           }
@@ -222,116 +318,152 @@ export default function ExportHistoryPage() {
       ) : (
         <div className="grid gap-5 lg:grid-cols-2">
           {exports.map(
-            (exportItem) => (
-              <Card key={exportItem.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <CardTitle className="truncate text-base">
-                        {
-                          exportItem.listingTitle
-                        }
-                      </CardTitle>
+            (exportItem) => {
+              const isRetrying =
+                retryingCleanupId ===
+                exportItem.id;
 
-                      <CardDescription className="mt-1">
-                        Exported{" "}
-                        {formatDate(
-                          exportItem.exportedAt,
-                        )}
-                      </CardDescription>
+              return (
+                <Card key={exportItem.id}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <CardTitle className="truncate text-base">
+                          {
+                            exportItem.listingTitle
+                          }
+                        </CardTitle>
+
+                        <CardDescription className="mt-1">
+                          Exported{" "}
+                          {formatDate(
+                            exportItem.exportedAt,
+                          )}
+                        </CardDescription>
+                      </div>
+
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium capitalize ${getStateClasses(
+                          exportItem.state,
+                        )}`}
+                      >
+                        {exportItem.state}
+                      </span>
                     </div>
+                  </CardHeader>
 
-                    <span
-                      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium capitalize ${getStateClasses(
-                        exportItem.state,
-                      )}`}
-                    >
-                      {exportItem.state}
-                    </span>
-                  </div>
-                </CardHeader>
-
-                <CardContent className="space-y-5">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl border p-3">
-                      <p className="text-xs text-muted-foreground">
-                        Etsy listing ID
-                      </p>
-
-                      <p className="mt-1 truncate text-sm font-medium">
-                        {
-                          exportItem.listingId
-                        }
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl border p-3">
-                      <p className="text-xs text-muted-foreground">
-                        Images uploaded
-                      </p>
-
-                      <p className="mt-1 flex items-center gap-2 text-sm font-medium">
-                        <ImageIcon className="size-4 text-muted-foreground" />
-                        {
-                          exportItem.uploadedImageCount
-                        }
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Store className="size-4 shrink-0" />
-
-                    <span className="truncate">
-                      {exportItem.shopName ||
-                        `Shop ${exportItem.shopId}`}
-                    </span>
-                  </div>
-
-                  {exportItem.projectCleanupCompleted ? (
-                    <div className="rounded-xl border bg-muted/20 p-3 text-sm text-muted-foreground">
-                      SellerOS project files were
-                      deleted successfully after
-                      export.
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                      <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-
-                      <div>
-                        <p className="font-medium">
-                          Project cleanup incomplete
+                  <CardContent className="space-y-5">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-xl border p-3">
+                        <p className="text-xs text-muted-foreground">
+                          Etsy listing ID
                         </p>
 
-                        <p className="mt-1">
-                          {exportItem.projectCleanupError ||
-                            "The SellerOS project could not be deleted automatically."}
+                        <p className="mt-1 truncate text-sm font-medium">
+                          {
+                            exportItem.listingId
+                          }
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border p-3">
+                        <p className="text-xs text-muted-foreground">
+                          Images uploaded
+                        </p>
+
+                        <p className="mt-1 flex items-center gap-2 text-sm font-medium">
+                          <ImageIcon className="size-4 text-muted-foreground" />
+                          {
+                            exportItem.uploadedImageCount
+                          }
                         </p>
                       </div>
                     </div>
-                  )}
 
-                  {exportItem.listingUrl ? (
-                    <a
-                      href={
-                        exportItem.listingUrl
-                      }
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex h-9 w-full items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-xs transition-all hover:bg-primary/90"
-                    >
-                      Open Etsy listing
-                      <ExternalLink className="size-4" />
-                    </a>
-                  ) : (
-                    <div className="rounded-xl border p-3 text-center text-sm text-muted-foreground">
-                      Etsy did not provide a direct
-                      listing URL.
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Store className="size-4 shrink-0" />
+
+                      <span className="truncate">
+                        {exportItem.shopName ||
+                          `Shop ${exportItem.shopId}`}
+                      </span>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            ),
+
+                    {exportItem.projectCleanupCompleted ? (
+                      <div className="rounded-xl border bg-muted/20 p-3 text-sm text-muted-foreground">
+                        SellerOS project files were
+                        deleted successfully after
+                        export.
+                      </div>
+                    ) : (
+                      <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+
+                          <div>
+                            <p className="font-medium">
+                              Project cleanup incomplete
+                            </p>
+
+                            <p className="mt-1">
+                              {exportItem.projectCleanupError ||
+                                "The SellerOS project could not be deleted automatically."}
+                            </p>
+                          </div>
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full border-amber-300 bg-white text-amber-900 hover:bg-amber-100 hover:text-amber-900"
+                          disabled={
+                            isRetrying ||
+                            retryingCleanupId !==
+                              null
+                          }
+                          onClick={() =>
+                            void retryCleanup(
+                              exportItem.id,
+                            )
+                          }
+                        >
+                          {isRetrying ? (
+                            <>
+                              <LoaderCircle className="size-4 animate-spin" />
+                              Retrying cleanup…
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="size-4" />
+                              Retry project cleanup
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+
+                    {exportItem.listingUrl ? (
+                      <a
+                        href={
+                          exportItem.listingUrl
+                        }
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-9 w-full items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-xs transition-all hover:bg-primary/90"
+                      >
+                        Open Etsy listing
+                        <ExternalLink className="size-4" />
+                      </a>
+                    ) : (
+                      <div className="rounded-xl border p-3 text-center text-sm text-muted-foreground">
+                        Etsy did not provide a direct
+                        listing URL.
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            },
           )}
         </div>
       )}

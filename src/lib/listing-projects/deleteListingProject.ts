@@ -8,16 +8,19 @@ const LISTING_IMAGE_BUCKET =
 type DeleteListingProjectInput = {
   projectId: string;
   etsyUserId: string;
+  allowMissing?: boolean;
 };
 
 export type DeleteListingProjectResult = {
   projectId: string;
   deletedStorageFileCount: number;
+  projectAlreadyMissing: boolean;
 };
 
 export async function deleteListingProject({
   projectId,
   etsyUserId,
+  allowMissing = false,
 }: DeleteListingProjectInput): Promise<DeleteListingProjectResult> {
   const {
     data: project,
@@ -44,6 +47,14 @@ export async function deleteListingProject({
   }
 
   if (!project) {
+    if (allowMissing) {
+      return {
+        projectId,
+        deletedStorageFileCount: 0,
+        projectAlreadyMissing: true,
+      };
+    }
+
     throw new Error(
       "The listing project was not found.",
     );
@@ -140,5 +151,6 @@ export async function deleteListingProject({
     projectId,
     deletedStorageFileCount:
       storagePaths.length,
+    projectAlreadyMissing: false,
   };
 }
