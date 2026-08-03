@@ -42,7 +42,7 @@ function getEtsyUserId(
   return userId;
 }
 
-async function refreshEtsyToken(
+export async function refreshEtsyToken(
   refreshToken: string,
 ) {
   const requestBody =
@@ -99,6 +99,10 @@ async function refreshEtsyToken(
       refreshToken,
     expiresIn:
       data.expires_in ?? 3600,
+    userId:
+      getEtsyUserId(
+        data.access_token,
+      ),
   };
 }
 
