@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  ChartNoAxesCombined,
   CreditCard,
   FileClock,
   FilePlus2,
@@ -76,6 +77,12 @@ export const navigationItems: NavigationItem[] = [
         name: "Update History",
         href: "/listing-update-history",
         icon: History,
+      },
+      {
+        type: "link",
+        name: "Optimization Results",
+        href: "/optimization-results",
+        icon: ChartNoAxesCombined,
       },
     ],
   },
