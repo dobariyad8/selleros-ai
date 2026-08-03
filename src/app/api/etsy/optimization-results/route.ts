@@ -7,6 +7,14 @@ import {
   supabaseAdmin,
 } from "@/lib/supabase/server";
 
+import {
+  applyEtsyAuthCookies,
+  type EtsyAuthSession,
+} from "@/lib/etsy/auth";
+import {
+  createEtsyRepository,
+} from "@/lib/etsy/createRepository";
+
 export const runtime = "nodejs";
 
 type SnapshotStage =
@@ -48,6 +56,10 @@ type UpdateHistoryRow = {
   updated_at: string;
 };
 
+type CaptureManualSnapshotRequest = {
+  updateHistoryId?: unknown;
+};
+
 function getEtsyUserId(
   request: NextRequest,
 ) {
@@ -66,6 +78,22 @@ function getEtsyUserId(
       ?.trim();
 
   return userId || null;
+}
+
+function readText(
+  value: unknown,
+) {
+  return typeof value === "string"
+    ? value.trim()
+    : "";
+}
+
+function isValidUuid(
+  value: string,
+) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
 }
 
 function toNumber(
@@ -321,12 +349,16 @@ export async function GET(
                 "baseline",
             ) ?? null;
 
-          const comparisonSnapshots =
+          const scheduledSnapshots =
             snapshots
               .filter(
                 (snapshot) =>
-                  snapshot.snapshot_stage !==
-                  "baseline",
+                  snapshot.snapshot_stage ===
+                    "day_7" ||
+                  snapshot.snapshot_stage ===
+                    "day_14" ||
+                  snapshot.snapshot_stage ===
+                    "day_30",
               )
               .sort(
                 (
@@ -340,10 +372,35 @@ export async function GET(
                     first.snapshot_stage,
                   ),
               );
-
+          
+          const latestManualSnapshot =
+            snapshots
+              .filter(
+                (snapshot) =>
+                  snapshot.snapshot_stage ===
+                  "manual",
+              )
+              .sort(
+                (
+                  first,
+                  second,
+                ) =>
+                  new Date(
+                    second.captured_at,
+                  ).getTime() -
+                  new Date(
+                    first.captured_at,
+                  ).getTime(),
+              )[0] ?? null;
+          
+          /*
+           * Manual snapshots provide an immediate preview.
+           * Once a scheduled snapshot exists, official Day 7,
+           * Day 14, or Day 30 data takes precedence.
+           */
           const latest =
-            comparisonSnapshots[0] ??
-            null;
+            scheduledSnapshots[0] ??
+            latestManualSnapshot;
 
           const favoriteChange =
             baseline &&
@@ -620,5 +677,365 @@ export async function GET(
         status: 500,
       },
     );
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+) {
+  let authSession:
+    | EtsyAuthSession
+    | null = null;
+
+  try {
+    const body =
+      (await request.json()) as CaptureManualSnapshotRequest;
+
+    const updateHistoryId =
+      readText(
+        body.updateHistoryId,
+      );
+
+    if (
+      !updateHistoryId ||
+      !isValidUuid(
+        updateHistoryId,
+      )
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "A valid update history ID is required.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    const {
+      repository,
+      authSession:
+        repositoryAuthSession,
+    } =
+      await createEtsyRepository(
+        request,
+      );
+
+    authSession =
+      repositoryAuthSession;
+
+    const etsyUserId =
+      authSession.userId;
+
+    const {
+      data: historyRecord,
+      error: historyError,
+    } = await supabaseAdmin
+      .from(
+        "etsy_listing_update_history",
+      )
+      .select(
+        `
+          id,
+          etsy_shop_id,
+          etsy_listing_id,
+          listing_title,
+          update_status
+        `,
+      )
+      .eq(
+        "id",
+        updateHistoryId,
+      )
+      .eq(
+        "etsy_user_id",
+        etsyUserId,
+      )
+      .maybeSingle();
+
+    if (historyError) {
+      console.error(
+        "Manual optimization snapshot history lookup failed:",
+        historyError,
+      );
+
+      throw new Error(
+        "The tracked optimization could not be loaded.",
+      );
+    }
+
+    if (!historyRecord) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "The tracked optimization was not found.",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
+    if (
+      historyRecord.update_status !==
+      "success"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Only successful Etsy updates can be measured.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    const shopId =
+      Number(
+        historyRecord.etsy_shop_id,
+      );
+
+    const listingId =
+      Number(
+        historyRecord.etsy_listing_id,
+      );
+
+    if (
+      !Number.isInteger(shopId) ||
+      shopId < 1 ||
+      !Number.isInteger(
+        listingId,
+      ) ||
+      listingId < 1
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "The tracked optimization does not contain valid Etsy IDs.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    const {
+      data: baseline,
+      error: baselineError,
+    } = await supabaseAdmin
+      .from(
+        "etsy_optimization_snapshots",
+      )
+      .select("id")
+      .eq(
+        "update_history_id",
+        updateHistoryId,
+      )
+      .eq(
+        "snapshot_stage",
+        "baseline",
+      )
+      .maybeSingle();
+
+    if (baselineError) {
+      throw new Error(
+        "The optimization baseline could not be verified.",
+      );
+    }
+
+    if (!baseline) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "This optimization does not have a baseline snapshot.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    const metrics =
+      await repository.getListingPerformanceMetrics(
+        shopId,
+        listingId,
+      );
+
+    /*
+     * There is one manual snapshot per optimization.
+     * Capturing again replaces the previous manual preview.
+     */
+    const {
+      error: snapshotError,
+    } = await supabaseAdmin
+      .from(
+        "etsy_optimization_snapshots",
+      )
+      .upsert(
+        {
+          etsy_user_id:
+            etsyUserId,
+
+          update_history_id:
+            updateHistoryId,
+
+          etsy_shop_id:
+            shopId,
+
+          etsy_listing_id:
+            listingId,
+
+          listing_title:
+            metrics.listingTitle ??
+            historyRecord.listing_title,
+
+          snapshot_stage:
+            "manual",
+
+          listing_state:
+            metrics.listingState,
+
+          favorite_count:
+            metrics.favoriteCount,
+
+          transaction_count:
+            metrics.transactionCount,
+
+          units_sold:
+            metrics.unitsSold,
+
+          revenue_amount:
+            metrics.revenueAmount,
+
+          revenue_currency:
+            metrics.revenueCurrency,
+
+          snapshot_error:
+            null,
+
+          captured_at:
+            metrics.capturedAt,
+        },
+        {
+          onConflict:
+            "update_history_id,snapshot_stage",
+        },
+      );
+
+    if (snapshotError) {
+      console.error(
+        "Manual optimization snapshot save failed:",
+        snapshotError,
+      );
+
+      throw new Error(
+        "The Etsy metrics were retrieved, but the manual snapshot could not be saved.",
+      );
+    }
+
+    const response =
+      NextResponse.json({
+        success: true,
+
+        updateHistoryId,
+
+        listingId,
+
+        snapshot: {
+          stage:
+            "manual",
+
+          listingState:
+            metrics.listingState,
+
+          favoriteCount:
+            metrics.favoriteCount,
+
+          transactionCount:
+            metrics.transactionCount,
+
+          unitsSold:
+            metrics.unitsSold,
+
+          revenueAmount:
+            metrics.revenueAmount,
+
+          revenueCurrency:
+            metrics.revenueCurrency,
+
+          capturedAt:
+            metrics.capturedAt,
+        },
+      });
+
+    return applyEtsyAuthCookies(
+      response,
+      authSession,
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "The manual optimization snapshot could not be captured.";
+
+    console.error(
+      "Manual optimization snapshot failed:",
+      error,
+    );
+
+    const status =
+      message.includes(
+        "not found",
+      )
+        ? 404
+        : message.includes(
+              "valid",
+            ) ||
+              message.includes(
+                "successful",
+              ) ||
+              message.includes(
+                "baseline",
+              ) ||
+              message.includes(
+                "required",
+              )
+          ? 400
+          : message.includes(
+                "Connect your Etsy shop",
+              ) ||
+              message.includes(
+                "access token",
+              ) ||
+              message.includes(
+                "connection has expired",
+              )
+            ? 401
+            : 500;
+
+    const response =
+      NextResponse.json(
+        {
+          success: false,
+          error: message,
+        },
+        {
+          status,
+        },
+      );
+
+    return authSession
+      ? applyEtsyAuthCookies(
+          response,
+          authSession,
+        )
+      : response;
   }
 }

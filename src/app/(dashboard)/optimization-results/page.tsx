@@ -7,6 +7,8 @@ import {
   ArrowRight,
   ArrowUpRight,
   BarChart3,
+  Camera,
+  CheckCircle2,
   CircleMinus,
   Clock3,
   ExternalLink,
@@ -108,6 +110,14 @@ type OptimizationResultsResponse = {
   error?: string;
 };
 
+type CaptureManualSnapshotResponse = {
+  success: boolean;
+  updateHistoryId?: string;
+  listingId?: number;
+  snapshot?: PerformanceSnapshot;
+  error?: string;
+};
+
 function formatDate(
   value: string,
 ) {
@@ -147,7 +157,7 @@ function formatStage(
       return "Day 30";
 
     case "manual":
-      return "Manual";
+      return "Manual preview";
   }
 }
 
@@ -276,6 +286,16 @@ export default function OptimizationResultsPage() {
   const [isLoading, setIsLoading] =
     useState(true);
 
+  const [
+    capturingSnapshotId,
+    setCapturingSnapshotId,
+  ] = useState<string | null>(null);
+
+  const [
+    snapshotSuccess,
+    setSnapshotSuccess,
+  ] = useState("");
+
   const [error, setError] =
     useState("");
 
@@ -324,6 +344,67 @@ export default function OptimizationResultsPage() {
       }
     }, []);
 
+  async function captureSnapshotNow(
+    result: OptimizationResult,
+  ) {
+    setCapturingSnapshotId(
+      result.updateHistoryId,
+    );
+
+    setError("");
+    setSnapshotSuccess("");
+
+    try {
+      const response = await fetch(
+        "/api/etsy/optimization-results",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            updateHistoryId:
+              result.updateHistoryId,
+          }),
+        },
+      );
+
+      const data =
+        (await response.json()) as CaptureManualSnapshotResponse;
+
+      if (
+        !response.ok ||
+        !data.success
+      ) {
+        throw new Error(
+          data.error ||
+            "The performance snapshot could not be captured.",
+        );
+      }
+
+      setSnapshotSuccess(
+        `A fresh performance snapshot was captured for Etsy listing ${result.listingId}.`,
+      );
+
+      /*
+       * Reload the calculated summary and result card so the
+       * new manual comparison appears immediately.
+       */
+      await loadResults();
+    } catch (snapshotError) {
+      setError(
+        snapshotError instanceof Error
+          ? snapshotError.message
+          : "The performance snapshot could not be captured.",
+      );
+    } finally {
+      setCapturingSnapshotId(
+        null,
+      );
+    }
+  }
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadResults();
@@ -339,6 +420,10 @@ export default function OptimizationResultsPage() {
         ).length,
       [results],
     );
+
+  const isActionRunning =
+    isLoading ||
+    capturingSnapshotId !== null;
 
   return (
     <div className="space-y-6">
@@ -364,10 +449,11 @@ export default function OptimizationResultsPage() {
         <Button
           type="button"
           variant="outline"
-          disabled={isLoading}
-          onClick={() =>
-            void loadResults()
-          }
+          disabled={isActionRunning}
+          onClick={() => {
+            setSnapshotSuccess("");
+            void loadResults();
+          }}
         >
           <RefreshCw
             className={
@@ -380,6 +466,25 @@ export default function OptimizationResultsPage() {
           Refresh results
         </Button>
       </div>
+
+      {snapshotSuccess ? (
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"
+        >
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+
+          <div>
+            <p className="font-medium">
+              Snapshot captured
+            </p>
+
+            <p className="mt-1">
+              {snapshotSuccess}
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {error ? (
         <div
@@ -479,7 +584,8 @@ export default function OptimizationResultsPage() {
                 </p>
 
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Waiting for a scheduled snapshot
+                  Waiting for a comparison
+                  snapshot
                 </p>
               </CardContent>
             </Card>
@@ -582,6 +688,23 @@ export default function OptimizationResultsPage() {
                   result.baseline
                     ?.revenueCurrency ??
                   null;
+
+                const isCapturing =
+                  capturingSnapshotId ===
+                  result.updateHistoryId;
+
+                const hasManualSnapshot =
+                  result.availableStages.includes(
+                    "manual",
+                  );
+
+                const hasScheduledSnapshot =
+                  result.availableStages.some(
+                    (stage) =>
+                      stage === "day_7" ||
+                      stage === "day_14" ||
+                      stage === "day_30",
+                  );
 
                 return (
                   <Card
@@ -700,6 +823,17 @@ export default function OptimizationResultsPage() {
                                 )
                               : "Waiting for Day 7"}
                           </p>
+
+                          {result.latestSnapshot ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Captured{" "}
+                              {formatDate(
+                                result
+                                  .latestSnapshot
+                                  .capturedAt,
+                              )}
+                            </p>
+                          ) : null}
                         </div>
                       </div>
 
@@ -716,24 +850,62 @@ export default function OptimizationResultsPage() {
 
                             <p className="mt-1">
                               The baseline is saved.
-                              SellerOS will collect the
-                              first comparison around
-                              seven days after the
-                              update.
+                              Capture a manual preview
+                              now or wait for the
+                              official Day 7
+                              measurement.
                             </p>
                           </div>
                         </div>
                       ) : null}
 
-                      <div className="grid gap-2 sm:grid-cols-2">
+                      {result.latestSnapshot
+                        ?.stage ===
+                      "manual" ? (
+                        <div className="rounded-xl border bg-muted/30 p-3 text-xs leading-5 text-muted-foreground">
+                          This is a manual preview.
+                          The official Day 7, Day 14,
+                          and Day 30 snapshots will
+                          replace it as the primary
+                          measurement.
+                        </div>
+                      ) : null}
+
+                      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={
+                            isActionRunning
+                          }
+                          onClick={() =>
+                            void captureSnapshotNow(
+                              result,
+                            )
+                          }
+                        >
+                          {isCapturing ? (
+                            <>
+                              <LoaderCircle className="size-4 animate-spin" />
+                              Capturing…
+                            </>
+                          ) : (
+                            <>
+                              <Camera className="size-4" />
+                              {hasManualSnapshot &&
+                              !hasScheduledSnapshot
+                                ? "Refresh snapshot"
+                                : "Capture snapshot now"}
+                            </>
+                          )}
+                        </Button>
+
                         <Button
                           type="button"
                           variant="outline"
                           nativeButton={false}
                           render={
-                            <Link
-                              href={`/listing-update-history`}
-                            />
+                            <Link href="/listing-update-history" />
                           }
                         >
                           View update history
@@ -743,7 +915,7 @@ export default function OptimizationResultsPage() {
                           href={`https://www.etsy.com/listing/${result.listingId}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-xs transition-all hover:bg-primary/90"
+                          className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-xs transition-all hover:bg-primary/90 sm:col-span-2 xl:col-span-1"
                         >
                           Open Etsy listing
 
@@ -760,10 +932,13 @@ export default function OptimizationResultsPage() {
           <p className="text-xs leading-5 text-muted-foreground">
             Results compare cumulative Etsy
             totals against the baseline saved
-            immediately after each update. Revenue
-            represents item revenue returned by
-            Etsy and excludes shipping, taxes,
-            fees, refunds, and advertising costs.
+            immediately after each update. Manual
+            snapshots are previews; scheduled Day
+            7, Day 14, and Day 30 measurements take
+            priority. Revenue represents item
+            revenue returned by Etsy and excludes
+            shipping, taxes, fees, refunds, and
+            advertising costs.
           </p>
         </>
       )}
