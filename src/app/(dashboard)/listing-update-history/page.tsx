@@ -7,6 +7,7 @@ import {
   History,
   LoaderCircle,
   RefreshCw,
+  RotateCcw,
   Store,
 } from "lucide-react";
 import {
@@ -63,6 +64,19 @@ type ListingUpdateHistoryResponse = {
   success: boolean;
   count?: number;
   updates?: ListingUpdateHistoryItem[];
+  error?: string;
+};
+
+type RestoreListingResponse = {
+  success: boolean;
+  listingId?: number;
+  updatedFields?: {
+    title: boolean;
+    description: boolean;
+    tags: boolean;
+  };
+  performanceTrackingStarted?: boolean;
+  performanceTrackingError?: string | null;
   error?: string;
 };
 
@@ -236,6 +250,36 @@ export default function ListingUpdateHistoryPage() {
   const [error, setError] =
     useState("");
 
+    const [
+  restoringUpdateId,
+  setRestoringUpdateId,
+] = useState<string | null>(null);
+
+const [
+  confirmingRestoreId,
+  setConfirmingRestoreId,
+] = useState<string | null>(null);
+
+const [
+  restoreTitle,
+  setRestoreTitle,
+] = useState(false);
+
+const [
+  restoreDescription,
+  setRestoreDescription,
+] = useState(false);
+
+const [
+  restoreTags,
+  setRestoreTags,
+] = useState(false);
+
+const [
+  restoreSuccess,
+  setRestoreSuccess,
+] = useState("");
+
   const loadUpdateHistory =
     useCallback(async () => {
       setIsLoading(true);
@@ -276,6 +320,187 @@ export default function ListingUpdateHistoryPage() {
         setIsLoading(false);
       }
     }, []);
+
+    function openRestoreConfirmation(
+  update: ListingUpdateHistoryItem,
+) {
+  const canRestoreTitle =
+    update.updatedFields.title &&
+    Boolean(
+      update.previousValues.title?.trim(),
+    );
+
+  const canRestoreDescription =
+    update.updatedFields.description &&
+    Boolean(
+      update.previousValues.description?.trim(),
+    );
+
+  const canRestoreTags =
+    update.updatedFields.tags &&
+    update.previousValues.tags.length > 0;
+
+  setRestoreTitle(
+    canRestoreTitle,
+  );
+
+  setRestoreDescription(
+    canRestoreDescription,
+  );
+
+  setRestoreTags(
+    canRestoreTags,
+  );
+
+  setError("");
+  setRestoreSuccess("");
+
+  setConfirmingRestoreId(
+    update.id,
+  );
+}
+
+function cancelRestore() {
+  if (restoringUpdateId) {
+    return;
+  }
+
+  setConfirmingRestoreId(
+    null,
+  );
+
+  setRestoreTitle(false);
+  setRestoreDescription(false);
+  setRestoreTags(false);
+  setError("");
+}
+
+async function restorePreviousValues(
+  update: ListingUpdateHistoryItem,
+) {
+  if (
+    !restoreTitle &&
+    !restoreDescription &&
+    !restoreTags
+  ) {
+    setError(
+      "Select at least one previous value to restore.",
+    );
+
+    return;
+  }
+
+  setRestoringUpdateId(
+    update.id,
+  );
+
+  setError("");
+  setRestoreSuccess("");
+
+  try {
+    const response = await fetch(
+      "/api/etsy/update-listing-content",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          listingId:
+            update.listingId,
+
+          updateTitle:
+            restoreTitle,
+
+          updateDescription:
+            restoreDescription,
+
+          updateTags:
+            restoreTags,
+
+          title:
+            update.previousValues.title ??
+            "",
+
+          description:
+            update.previousValues.description ??
+            "",
+
+          tags:
+            update.previousValues.tags,
+        }),
+      },
+    );
+
+    const data =
+      (await response.json()) as RestoreListingResponse;
+
+    if (
+      !response.ok ||
+      !data.success
+    ) {
+      throw new Error(
+        data.error ||
+          "The previous Etsy values could not be restored.",
+      );
+    }
+
+    const restoredFields: string[] =
+      [];
+
+    if (
+      data.updatedFields?.title
+    ) {
+      restoredFields.push(
+        "title",
+      );
+    }
+
+    if (
+      data.updatedFields
+        ?.description
+    ) {
+      restoredFields.push(
+        "description",
+      );
+    }
+
+    if (
+      data.updatedFields?.tags
+    ) {
+      restoredFields.push(
+        "tags",
+      );
+    }
+
+    setRestoreSuccess(
+      `Previous ${restoredFields.join(
+        ", ",
+      )} restored on Etsy listing ${update.listingId}.`,
+    );
+
+    setConfirmingRestoreId(
+      null,
+    );
+
+    setRestoreTitle(false);
+    setRestoreDescription(false);
+    setRestoreTags(false);
+
+    await loadUpdateHistory();
+  } catch (restoreError) {
+    setError(
+      restoreError instanceof Error
+        ? restoreError.message
+        : "The previous Etsy values could not be restored.",
+    );
+  } finally {
+    setRestoringUpdateId(
+      null,
+    );
+  }
+}
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -321,6 +546,25 @@ export default function ListingUpdateHistoryPage() {
           Refresh history
         </Button>
       </div>
+
+      {restoreSuccess ? (
+          <div
+            role="status"
+            className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"
+          >
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+
+            <div>
+              <p className="font-medium">
+                Previous values restored
+              </p>
+
+              <p className="mt-1">
+                {restoreSuccess}
+              </p>
+            </div>
+          </div>
+        ) : null}
 
       {error ? (
         <div
@@ -371,6 +615,38 @@ export default function ListingUpdateHistoryPage() {
               const isSuccessful =
                 update.status ===
                 "success";
+
+              const canRestoreTitle =
+                isSuccessful &&
+                update.updatedFields.title &&
+                Boolean(
+                  update.previousValues.title?.trim(),
+                );
+            
+              const canRestoreDescription =
+                isSuccessful &&
+                update.updatedFields.description &&
+                Boolean(
+                  update.previousValues.description?.trim(),
+                );
+            
+              const canRestoreTags =
+                isSuccessful &&
+                update.updatedFields.tags &&
+                update.previousValues.tags.length > 0;
+            
+              const canRestoreAnything =
+                canRestoreTitle ||
+                canRestoreDescription ||
+                canRestoreTags;
+            
+              const isConfirmingRestore =
+                confirmingRestoreId ===
+                update.id;
+            
+              const isRestoring =
+                restoringUpdateId ===
+                update.id;
 
               return (
                 <Card key={update.id}>
@@ -513,16 +789,182 @@ export default function ListingUpdateHistoryPage() {
                       ) : null}
                     </div>
 
-                    <a
-                      href={`https://www.etsy.com/listing/${update.listingId}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex h-9 w-full items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-xs transition-all hover:bg-primary/90"
-                    >
-                      Open Etsy listing
-
-                      <ExternalLink className="size-4" />
-                    </a>
+                    {isConfirmingRestore ? (
+                      <div className="space-y-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                        <div className="flex items-start gap-3 text-amber-900">
+                          <AlertTriangle className="mt-0.5 size-5 shrink-0" />
+                                        
+                          <div>
+                            <p className="font-medium">
+                              Restore previous Etsy values?
+                            </p>
+                                        
+                            <p className="mt-1 text-sm">
+                              Selected values from this history
+                              record will overwrite the listing’s
+                              current Etsy content.
+                            </p>
+                          </div>
+                        </div>
+                                        
+                        <div className="space-y-3">
+                          <label className="flex items-start gap-3 rounded-lg border bg-white p-3">
+                            <input
+                              type="checkbox"
+                              checked={restoreTitle}
+                              disabled={
+                                !canRestoreTitle ||
+                                isRestoring
+                              }
+                              onChange={(event) =>
+                                setRestoreTitle(
+                                  event.target.checked,
+                                )
+                              }
+                              className="mt-1 size-4"
+                            />
+                    
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium">
+                                Restore title
+                              </span>
+                          
+                              <span className="mt-1 block wrap-break-word text-xs text-muted-foreground">
+                                {canRestoreTitle
+                                  ? update.previousValues.title
+                                  : "No previous title is available."}
+                              </span>
+                            </span>
+                          </label>
+                                
+                          <label className="flex items-start gap-3 rounded-lg border bg-white p-3">
+                            <input
+                              type="checkbox"
+                              checked={restoreDescription}
+                              disabled={
+                                !canRestoreDescription ||
+                                isRestoring
+                              }
+                              onChange={(event) =>
+                                setRestoreDescription(
+                                  event.target.checked,
+                                )
+                              }
+                              className="mt-1 size-4"
+                            />
+                    
+                            <span>
+                              <span className="block text-sm font-medium">
+                                Restore description
+                              </span>
+                          
+                              <span className="mt-1 block text-xs text-muted-foreground">
+                                {canRestoreDescription
+                                  ? `${update.previousValues.description?.length ?? 0} characters`
+                                  : "No previous description is available."}
+                              </span>
+                            </span>
+                          </label>
+                                
+                          <label className="flex items-start gap-3 rounded-lg border bg-white p-3">
+                            <input
+                              type="checkbox"
+                              checked={restoreTags}
+                              disabled={
+                                !canRestoreTags ||
+                                isRestoring
+                              }
+                              onChange={(event) =>
+                                setRestoreTags(
+                                  event.target.checked,
+                                )
+                              }
+                              className="mt-1 size-4"
+                            />
+                    
+                            <span>
+                              <span className="block text-sm font-medium">
+                                Restore tags
+                              </span>
+                          
+                              <span className="mt-1 block text-xs text-muted-foreground">
+                                {canRestoreTags
+                                  ? `${update.previousValues.tags.length} previous tags`
+                                  : "No previous tags are available."}
+                              </span>
+                            </span>
+                          </label>
+                        </div>
+                                
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={isRestoring}
+                            onClick={cancelRestore}
+                          >
+                            Cancel
+                          </Button>
+                                
+                          <Button
+                            type="button"
+                            disabled={
+                              isRestoring ||
+                              (!restoreTitle &&
+                                !restoreDescription &&
+                                !restoreTags)
+                            }
+                            onClick={() =>
+                              void restorePreviousValues(
+                                update,
+                              )
+                            }
+                          >
+                            {isRestoring ? (
+                              <>
+                                <LoaderCircle className="size-4 animate-spin" />
+                                Restoring…
+                              </>
+                            ) : (
+                              <>
+                                <RotateCcw className="size-4" />
+                                Confirm restore
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={
+                            !canRestoreAnything ||
+                            restoringUpdateId !== null
+                          }
+                          onClick={() =>
+                            openRestoreConfirmation(
+                              update,
+                            )
+                          }
+                        >
+                          <RotateCcw className="size-4" />
+                          Restore previous values
+                        </Button>
+                      
+                        <a
+                          href={`https://www.etsy.com/listing/${update.listingId}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-xs transition-all hover:bg-primary/90"
+                        >
+                          Open Etsy listing
+                      
+                          <ExternalLink className="size-4" />
+                        </a>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
