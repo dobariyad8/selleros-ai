@@ -17,6 +17,7 @@ import AIDescriptionRewriteCard from "@/components/ai/AIDescriptionReWriteCard";
 import AITagGeneratorCard from "@/components/ai/AITagGeneratorCard";
 import CompleteOptimizationCard from "@/components/ai/CompleteOptimizationCard";
 import AIImageGeneratorCard from "@/components/ai/AIImageGeneratorCard";
+import { useListings } from "@/hooks/useListings";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -90,6 +91,11 @@ export default function OptimizationTabs({
   optimizationVersion,
   onOptimizationComplete,
 }: Props) {
+
+  const {
+    updateListingContent,
+  } = useListings();
+
   const [activeTab, setActiveTab] =
     useState("full");
 
@@ -283,6 +289,45 @@ export default function OptimizationTabs({
               ", ",
             )
           : "selected content";
+
+      const localUpdates: {
+        title?: string;
+        description?: string;
+        tags?: string[];
+      } = {};
+      
+      if (data.updatedFields?.title) {
+        localUpdates.title =
+          data.title ??
+          suggestedTitle.trim();
+      
+        setSuggestedTitle("");
+      }
+      
+      if (
+        data.updatedFields?.description
+      ) {
+        localUpdates.description =
+          data.description ??
+          suggestedDescription.trim();
+      
+        setSuggestedDescription("");
+      }
+      
+      if (data.updatedFields?.tags) {
+        localUpdates.tags =
+          data.tags ??
+          suggestedTags
+            .map((tag) => tag.trim())
+            .filter(Boolean);
+      
+        setSuggestedTags([]);
+      }
+      
+      updateListingContent(
+        listing.id,
+        localUpdates,
+      );
 
       setEtsyUpdateSuccess(
         `Etsy listing ${listing.id} was updated successfully. Updated: ${fieldSummary}.`,

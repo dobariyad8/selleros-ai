@@ -35,6 +35,12 @@ export type AnalyzedListing = {
   analysis: ListingAnalysis;
 };
 
+export type ListingContentUpdate = {
+  title?: string;
+  description?: string;
+  tags?: string[];
+};
+
 export type ListingsContextValue = {
   listings: SellerOsListing[];
   analyzedListings: AnalyzedListing[];
@@ -49,6 +55,10 @@ export type ListingsContextValue = {
     SetStateAction<string>
   >;
   refreshListings: () => Promise<void>;
+updateListingContent: (
+  listingId: string | number,
+  updates: ListingContentUpdate,
+) => void;
 };
 
 export const ListingsContext =
@@ -162,6 +172,57 @@ export function ListingsProvider({
       await loadListings(true);
     }, [loadListings]);
 
+  const updateListingContent =
+  useCallback(
+    (
+      listingId: string | number,
+      updates: ListingContentUpdate,
+    ) => {
+      const normalizedListingId =
+        String(listingId);
+
+      setListingState(
+        (currentListings) =>
+          currentListings.map(
+            (listing) => {
+              if (
+                String(listing.id) !==
+                normalizedListingId
+              ) {
+                return listing;
+              }
+
+              return {
+                ...listing,
+                ...(updates.title !==
+                undefined
+                  ? {
+                      title:
+                        updates.title,
+                    }
+                  : {}),
+                ...(updates.description !==
+                undefined
+                  ? {
+                      description:
+                        updates.description,
+                    }
+                  : {}),
+                ...(updates.tags !==
+                undefined
+                  ? {
+                      tags:
+                        updates.tags,
+                    }
+                  : {}),
+              };
+            },
+          ),
+      );
+    },
+    [],
+  );
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadListings();
@@ -181,19 +242,9 @@ export function ListingsProvider({
         searchQuery,
         setSearchQuery,
         refreshListings,
+        updateListingContent,
       }),
-      [
-        listingState,
-        analyzedListings,
-        shop,
-        count,
-        totalAvailable,
-        isLoading,
-        isRefreshing,
-        error,
-        searchQuery,
-        refreshListings,
-      ],
+      [listingState, analyzedListings, shop, count, totalAvailable, isLoading, isRefreshing, error, searchQuery, refreshListings, updateListingContent],
     );
 
   return (
