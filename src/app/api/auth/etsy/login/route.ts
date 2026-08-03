@@ -1,8 +1,15 @@
 import crypto from "crypto";
-import { NextResponse } from "next/server";
-import { serverEnv } from "@/lib/env/server";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
 
-function base64UrlEncode(value: Buffer): string {
+import { serverEnv } from "@/lib/env/server";
+import { createSupabaseServerClient } from "@/lib/supabase/auth-server";
+
+function base64UrlEncode(
+  value: Buffer,
+): string {
   return value
     .toString("base64")
     .replace(/\+/g, "-")
@@ -10,26 +17,48 @@ function base64UrlEncode(value: Buffer): string {
     .replace(/=/g, "");
 }
 
-export async function GET() {
-  const clientId = serverEnv.etsyApiKey;
-  const redirectUri = serverEnv.etsyRedirectUri;
+export async function GET(
+  request: NextRequest,
+) {
+  const supabase =
+    await createSupabaseServerClient();
 
-  if (!clientId || !redirectUri) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Missing ETSY_API_KEY or ETSY_REDIRECT_URI.",
-      },
-      { status: 500 }
-    );
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    const loginUrl =
+      request.nextUrl.clone();
+
+    loginUrl.pathname = "/login";
+    loginUrl.search = "";
+
+    return NextResponse.redirect(loginUrl);
   }
 
-  const state = base64UrlEncode(crypto.randomBytes(24));
-  const codeVerifier = base64UrlEncode(crypto.randomBytes(32));
+  const clientId =
+    serverEnv.etsyApiKey;
 
-  const codeChallenge = base64UrlEncode(
-    crypto.createHash("sha256").update(codeVerifier).digest()
+  const redirectUri =
+    serverEnv.etsyRedirectUri;
+
+  const state = base64UrlEncode(
+    crypto.randomBytes(24),
   );
+
+  const codeVerifier =
+    base64UrlEncode(
+      crypto.randomBytes(32),
+    );
+
+  const codeChallenge =
+    base64UrlEncode(
+      crypto
+        .createHash("sha256")
+        .update(codeVerifier)
+        .digest(),
+    );
 
   const scopes = [
     "shops_r",
@@ -39,33 +68,76 @@ export async function GET() {
     "transactions_r",
   ].join(" ");
 
-  const authorizationUrl = new URL("https://www.etsy.com/oauth/connect");
+  const authorizationUrl =
+    new URL(
+      "https://www.etsy.com/oauth/connect",
+    );
 
-  authorizationUrl.searchParams.set("response_type", "code");
-  authorizationUrl.searchParams.set("client_id", clientId);
-  authorizationUrl.searchParams.set("redirect_uri", redirectUri);
-  authorizationUrl.searchParams.set("scope", scopes);
-  authorizationUrl.searchParams.set("state", state);
-  authorizationUrl.searchParams.set("code_challenge", codeChallenge);
-  authorizationUrl.searchParams.set("code_challenge_method", "S256");
+  authorizationUrl.searchParams.set(
+    "response_type",
+    "code",
+  );
 
-  const response = NextResponse.redirect(authorizationUrl);
+  authorizationUrl.searchParams.set(
+    "client_id",
+    clientId,
+  );
 
-  response.cookies.set("etsy_oauth_state", state, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: serverEnv.isProduction,
-    maxAge: 10 * 60,
-    path: "/",
-  });
+  authorizationUrl.searchParams.set(
+    "redirect_uri",
+    redirectUri,
+  );
 
-  response.cookies.set("etsy_code_verifier", codeVerifier, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: serverEnv.isProduction,
-    maxAge: 10 * 60,
-    path: "/",
-  });
+  authorizationUrl.searchParams.set(
+    "scope",
+    scopes,
+  );
+
+  authorizationUrl.searchParams.set(
+    "state",
+    state,
+  );
+
+  authorizationUrl.searchParams.set(
+    "code_challenge",
+    codeChallenge,
+  );
+
+  authorizationUrl.searchParams.set(
+    "code_challenge_method",
+    "S256",
+  );
+
+  const response =
+    NextResponse.redirect(
+      authorizationUrl,
+    );
+
+  response.cookies.set(
+    "etsy_oauth_state",
+    state,
+    {
+      httpOnly: true,
+      sameSite: "lax",
+      secure:
+        serverEnv.isProduction,
+      maxAge: 10 * 60,
+      path: "/",
+    },
+  );
+
+  response.cookies.set(
+    "etsy_code_verifier",
+    codeVerifier,
+    {
+      httpOnly: true,
+      sameSite: "lax",
+      secure:
+        serverEnv.isProduction,
+      maxAge: 10 * 60,
+      path: "/",
+    },
+  );
 
   return response;
 }

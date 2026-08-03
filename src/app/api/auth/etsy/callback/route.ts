@@ -4,6 +4,7 @@ import {
 } from "next/server";
 
 import { serverEnv } from "@/lib/env/server";
+import { createSupabaseServerClient } from "@/lib/supabase/auth-server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 const ETSY_TOKEN_URL =
@@ -29,10 +30,9 @@ type EtsyTokenResponse = {
 function getEtsyUserId(
   accessToken: string,
 ) {
-  const userId =
-    accessToken
-      .split(".")[0]
-      ?.trim();
+  const userId = accessToken
+    .split(".")[0]
+    ?.trim();
 
   if (!userId) {
     throw new Error(
@@ -46,9 +46,24 @@ function getEtsyUserId(
 export async function GET(
   request: NextRequest,
 ) {
-  const clientId =
-    serverEnv.etsyApiKey;
+  const supabase =
+    await createSupabaseServerClient();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    const loginUrl =
+      request.nextUrl.clone();
+
+    loginUrl.pathname = "/login";
+    loginUrl.search = "";
+
+    return NextResponse.redirect(loginUrl);
+  }
+
+  const clientId = serverEnv.etsyApiKey;
   const redirectUri =
     serverEnv.etsyRedirectUri;
 
@@ -85,22 +100,6 @@ export async function GET(
       },
       {
         status: 400,
-      },
-    );
-  }
-
-  if (
-    !clientId ||
-    !redirectUri
-  ) {
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          "Missing Etsy environment variables.",
-      },
-      {
-        status: 500,
       },
     );
   }
@@ -149,30 +148,25 @@ export async function GET(
   }
 
   try {
-    const tokenResponse =
-      await fetch(
-        ETSY_TOKEN_URL,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            grant_type:
-              "authorization_code",
-            client_id:
-              clientId,
-            redirect_uri:
-              redirectUri,
-            code:
-              authorizationCode,
-            code_verifier:
-              codeVerifier,
-          }),
-          cache: "no-store",
+    const tokenResponse = await fetch(
+      ETSY_TOKEN_URL,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
         },
-      );
+        body: JSON.stringify({
+          grant_type:
+            "authorization_code",
+          client_id: clientId,
+          redirect_uri: redirectUri,
+          code: authorizationCode,
+          code_verifier: codeVerifier,
+        }),
+        cache: "no-store",
+      },
+    );
 
     const tokenData =
       (await tokenResponse.json()) as EtsyTokenResponse;
@@ -184,8 +178,7 @@ export async function GET(
       return NextResponse.json(
         {
           success: false,
-          status:
-            tokenResponse.status,
+          status: tokenResponse.status,
           error:
             tokenData.error ??
             "Token exchange failed.",
@@ -193,17 +186,12 @@ export async function GET(
             tokenData.error_description,
         },
         {
-          status:
-            tokenResponse.status,
+          status: tokenResponse.status,
         },
       );
     }
 
     if (!tokenData.refresh_token) {
-      console.error(
-        "Etsy OAuth token exchange did not return a refresh token.",
-      );
-
       return NextResponse.json(
         {
           success: false,
@@ -222,8 +210,7 @@ export async function GET(
       );
 
     const expiresIn =
-      tokenData.expires_in ??
-      3600;
+      tokenData.expires_in ?? 3600;
 
     const accessTokenExpiresAt =
       new Date(
@@ -236,6 +223,36 @@ export async function GET(
 
     const {
       error:
+        existingUserConnectionError,
+    } = await supabaseAdmin
+      .from("etsy_connections")
+      .delete()
+      .eq("user_id", user.id)
+      .neq(
+        "etsy_user_id",
+        etsyUserId,
+      );
+
+    if (existingUserConnectionError) {
+      console.error(
+        "Could not remove the user's previous Etsy connection:",
+        existingUserConnectionError,
+      );
+
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "SellerOS could not replace the existing Etsy connection.",
+        },
+        {
+          status: 500,
+        },
+      );
+    }
+
+    const {
+      error:
         connectionSaveError,
     } = await supabaseAdmin
       .from("etsy_connections")
@@ -243,22 +260,19 @@ export async function GET(
         {
           etsy_user_id:
             etsyUserId,
+          user_id: user.id,
           access_token:
             tokenData.access_token,
           refresh_token:
             tokenData.refresh_token,
           access_token_expires_at:
             accessTokenExpiresAt,
-          scopes:
-            ETSY_SCOPES,
+          scopes: ETSY_SCOPES,
           connection_status:
             "active",
-          last_refreshed_at:
-            now,
-          last_error:
-            null,
-          updated_at:
-            now,
+          last_refreshed_at: now,
+          last_error: null,
+          updated_at: now,
         },
         {
           onConflict:
@@ -300,8 +314,7 @@ export async function GET(
         sameSite: "lax",
         secure:
           serverEnv.isProduction,
-        maxAge:
-          expiresIn,
+        maxAge: expiresIn,
         path: "/",
       },
     );

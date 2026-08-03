@@ -30,6 +30,8 @@ import {
   TriangleAlert,
   Unplug,
   X,
+  LogOut,
+  Mail,
 } from "lucide-react";
 
 import { useListings } from "@/hooks/useListings";
@@ -58,6 +60,7 @@ import {
 } from "@/components/ui/sheet";
 
 import MobileSidebar from "./MobileSidebar";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 function getShopInitials(shopName: string) {
   const words = shopName
@@ -78,6 +81,12 @@ function getShopInitials(shopName: string) {
 
 export default function Header() {
   const router = useRouter();
+
+  const [accountEmail, setAccountEmail] =
+    useState("");
+
+  const [isLoggingOut, setIsLoggingOut] =
+    useState(false);
 
   const [isMobileSearchOpen, setIsMobileSearchOpen] =
     useState(false);
@@ -116,6 +125,29 @@ export default function Header() {
   const notificationStorageKey = shop?.shopId
     ? `selleros:read-notifications:${shop.shopId}`
     : "selleros:read-notifications:disconnected";
+
+    useEffect(() => {
+      let isMounted = true;
+
+      async function loadAccount() {
+        const supabase =
+          createSupabaseBrowserClient();
+      
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+      
+        if (isMounted) {
+          setAccountEmail(user?.email ?? "");
+        }
+      }
+    
+      void loadAccount();
+    
+      return () => {
+        isMounted = false;
+      };
+    }, []);
     
     useEffect(() => {
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -255,6 +287,26 @@ useEffect(() => {
     dismissNotification(listingId);
 
     router.push(`/audit/${listingId}`);
+  }
+
+  async function logOut() {
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+
+    try {
+      const supabase =
+        createSupabaseBrowserClient();
+
+      await supabase.auth.signOut();
+
+      router.replace("/login");
+      router.refresh();
+    } finally {
+      setIsLoggingOut(false);
+    }
   }
 
   function disconnectEtsyShop() {
@@ -552,9 +604,15 @@ useEffect(() => {
                 {shopName}
               </p>
 
-              <p className="mt-1 truncate text-xs text-muted-foreground">
-                {accountStatus}
+              <p className="mt-0.5 truncate text-xs font-normal text-muted-foreground">
+                {accountEmail || accountStatus}
               </p>
+
+              {accountEmail && (
+                <p className="mt-0.5 truncate text-xs font-normal text-muted-foreground">
+                  {accountStatus}
+                </p>
+              )}
             </div>
 
             <ChevronDown className="hidden size-4 shrink-0 text-muted-foreground sm:block" />
@@ -614,6 +672,32 @@ useEffect(() => {
               >
                 <Settings className="size-4" />
                 Settings
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuGroup>
+              {accountEmail && (
+                <DropdownMenuItem disabled>
+                  <Mail className="size-4" />
+                  <span className="truncate">
+                    {accountEmail}
+                  </span>
+                </DropdownMenuItem>
+              )}
+            
+              <DropdownMenuItem
+                disabled={isLoggingOut}
+                onClick={() => {
+                  void logOut();
+                }}
+              >
+                <LogOut className="size-4" />
+              
+                {isLoggingOut
+                  ? "Logging out…"
+                  : "Log out"}
               </DropdownMenuItem>
             </DropdownMenuGroup>
 

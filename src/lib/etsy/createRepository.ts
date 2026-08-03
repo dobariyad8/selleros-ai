@@ -3,12 +3,12 @@ import "server-only";
 import { NextRequest } from "next/server";
 
 import {
-  getEtsyAuthSession,
   refreshEtsyToken,
   type EtsyAuthSession,
 } from "@/lib/etsy/auth";
 import { serverEnv } from "@/lib/env/server";
 import { EtsyRepository } from "@/lib/etsy/repository";
+import { createSupabaseServerClient } from "@/lib/supabase/auth-server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 const TOKEN_REFRESH_BUFFER_MILLISECONDS =
@@ -41,8 +41,7 @@ function createRepositoryFromAccessToken(
   accessToken: string,
 ) {
   return new EtsyRepository({
-    apiKey:
-      serverEnv.etsyApiKey,
+    apiKey: serverEnv.etsyApiKey,
     sharedSecret:
       serverEnv.etsySharedSecret,
     accessToken,
@@ -55,11 +54,7 @@ function shouldRefreshStoredToken(
   const expirationTime =
     new Date(expiresAt).getTime();
 
-  if (
-    !Number.isFinite(
-      expirationTime,
-    )
-  ) {
+  if (!Number.isFinite(expirationTime)) {
     return true;
   }
 
@@ -70,22 +65,225 @@ function shouldRefreshStoredToken(
   );
 }
 
-export async function createEtsyRepository(
-  request: NextRequest,
-): Promise<EtsyRepositorySession> {
-  const authSession =
-    await getEtsyAuthSession(
-      request,
+async function refreshStoredConnection(
+  connection: StoredEtsyConnection,
+) {
+  try {
+    const refreshed =
+      await refreshEtsyToken(
+        connection.refresh_token,
+      );
+
+    if (
+      refreshed.userId !==
+      connection.etsy_user_id
+    ) {
+      throw new Error(
+        "The refreshed Etsy token belongs to a different seller.",
+      );
+    }
+
+    const now =
+      new Date().toISOString();
+
+    const accessTokenExpiresAt =
+      new Date(
+        Date.now() +
+          refreshed.expiresIn * 1000,
+      ).toISOString();
+
+    const {
+      error: refreshSaveError,
+    } = await supabaseAdmin
+      .from("etsy_connections")
+      .update({
+        access_token:
+          refreshed.accessToken,
+        refresh_token:
+          refreshed.refreshToken,
+        access_token_expires_at:
+          accessTokenExpiresAt,
+        connection_status: "active",
+        last_refreshed_at: now,
+        last_error: null,
+        updated_at: now,
+      })
+      .eq(
+        "etsy_user_id",
+        connection.etsy_user_id,
+      );
+
+    if (refreshSaveError) {
+      console.error(
+        "Refreshed Etsy connection save failed:",
+        refreshSaveError,
+      );
+
+      throw new Error(
+        "The Etsy token was refreshed, but the stored connection could not be updated.",
+      );
+    }
+
+    return {
+      accessToken:
+        refreshed.accessToken,
+      refreshToken:
+        refreshed.refreshToken,
+      expiresIn:
+        refreshed.expiresIn,
+      wasRefreshed: true,
+    };
+  } catch (refreshError) {
+    const message =
+      refreshError instanceof Error
+        ? refreshError.message
+        : "The stored Etsy connection could not be refreshed.";
+
+    console.error(
+      "Stored Etsy token refresh failed:",
+      {
+        etsyUserId:
+          connection.etsy_user_id,
+        refreshError,
+      },
     );
 
-  const repository =
-    createRepositoryFromAccessToken(
-      authSession.accessToken,
+    const now =
+      new Date().toISOString();
+
+    const {
+      error: failureSaveError,
+    } = await supabaseAdmin
+      .from("etsy_connections")
+      .update({
+        connection_status: "expired",
+        last_error: message,
+        updated_at: now,
+      })
+      .eq(
+        "etsy_user_id",
+        connection.etsy_user_id,
+      );
+
+    if (failureSaveError) {
+      console.error(
+        "Stored Etsy connection failure state could not be saved:",
+        failureSaveError,
+      );
+    }
+
+    throw refreshError;
+  }
+}
+
+export async function createEtsyRepository(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _request: NextRequest,
+): Promise<EtsyRepositorySession> {
+  const supabase =
+    await createSupabaseServerClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error(
+      "Log in to SellerOS before accessing Etsy data.",
     );
+  }
+
+  const {
+    data: connectionData,
+    error: connectionError,
+  } = await supabaseAdmin
+    .from("etsy_connections")
+    .select(
+      `
+        etsy_user_id,
+        access_token,
+        refresh_token,
+        access_token_expires_at,
+        connection_status
+      `,
+    )
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (connectionError) {
+    console.error(
+      "SellerOS Etsy connection load failed:",
+      connectionError,
+    );
+
+    throw new Error(
+      "Your Etsy connection could not be loaded.",
+    );
+  }
+
+  if (!connectionData) {
+    throw new Error(
+      "Connect your Etsy shop before continuing.",
+    );
+  }
+
+  const connection =
+    connectionData as StoredEtsyConnection;
+
+  if (
+    connection.connection_status !==
+    "active"
+  ) {
+    throw new Error(
+      "Your Etsy connection is not active. Reconnect your Etsy shop.",
+    );
+  }
+
+  let accessToken =
+    connection.access_token;
+
+  let refreshToken =
+    connection.refresh_token;
+
+  let wasRefreshed = false;
+  let expiresIn: number | null = null;
+
+  if (
+    shouldRefreshStoredToken(
+      connection.access_token_expires_at,
+    )
+  ) {
+    const refreshed =
+      await refreshStoredConnection(
+        connection,
+      );
+
+    accessToken =
+      refreshed.accessToken;
+
+    refreshToken =
+      refreshed.refreshToken;
+
+    wasRefreshed =
+      refreshed.wasRefreshed;
+
+    expiresIn =
+      refreshed.expiresIn;
+  }
 
   return {
-    repository,
-    authSession,
+    repository:
+      createRepositoryFromAccessToken(
+        accessToken,
+      ),
+    authSession: {
+      accessToken,
+      refreshToken,
+      userId:
+        connection.etsy_user_id,
+      wasRefreshed,
+      expiresIn,
+    },
   };
 }
 
@@ -153,124 +351,23 @@ export async function createStoredEtsyRepository(
   let accessToken =
     connection.access_token;
 
-  let wasRefreshed =
-    false;
+  let wasRefreshed = false;
 
   if (
     shouldRefreshStoredToken(
       connection.access_token_expires_at,
     )
   ) {
-    try {
-      const refreshed =
-        await refreshEtsyToken(
-          connection.refresh_token,
-        );
-
-      if (
-        refreshed.userId !==
-        normalizedUserId
-      ) {
-        throw new Error(
-          "The refreshed Etsy token belongs to a different seller.",
-        );
-      }
-
-      accessToken =
-        refreshed.accessToken;
-
-      wasRefreshed =
-        true;
-
-      const now =
-        new Date().toISOString();
-
-      const accessTokenExpiresAt =
-        new Date(
-          Date.now() +
-            refreshed.expiresIn *
-              1000,
-        ).toISOString();
-
-      const {
-        error: refreshSaveError,
-      } = await supabaseAdmin
-        .from("etsy_connections")
-        .update({
-          access_token:
-            refreshed.accessToken,
-          refresh_token:
-            refreshed.refreshToken,
-          access_token_expires_at:
-            accessTokenExpiresAt,
-          connection_status:
-            "active",
-          last_refreshed_at:
-            now,
-          last_error:
-            null,
-          updated_at:
-            now,
-        })
-        .eq(
-          "etsy_user_id",
-          normalizedUserId,
-        );
-
-      if (refreshSaveError) {
-        console.error(
-          "Refreshed Etsy connection save failed:",
-          refreshSaveError,
-        );
-
-        throw new Error(
-          "The Etsy token was refreshed, but the stored connection could not be updated.",
-        );
-      }
-    } catch (refreshError) {
-      const message =
-        refreshError instanceof Error
-          ? refreshError.message
-          : "The stored Etsy connection could not be refreshed.";
-
-      console.error(
-        "Stored Etsy token refresh failed:",
-        {
-          etsyUserId:
-            normalizedUserId,
-          refreshError,
-        },
+    const refreshed =
+      await refreshStoredConnection(
+        connection,
       );
 
-      const now =
-        new Date().toISOString();
+    accessToken =
+      refreshed.accessToken;
 
-      const {
-        error: failureSaveError,
-      } = await supabaseAdmin
-        .from("etsy_connections")
-        .update({
-          connection_status:
-            "expired",
-          last_error:
-            message,
-          updated_at:
-            now,
-        })
-        .eq(
-          "etsy_user_id",
-          normalizedUserId,
-        );
-
-      if (failureSaveError) {
-        console.error(
-          "Stored Etsy connection failure state could not be saved:",
-          failureSaveError,
-        );
-      }
-
-      throw refreshError;
-    }
+    wasRefreshed =
+      refreshed.wasRefreshed;
   }
 
   return {
