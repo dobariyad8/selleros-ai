@@ -13,6 +13,9 @@ import {
 import {
   createEtsyRepository,
 } from "@/lib/etsy/createRepository";
+import {
+  supabaseAdmin,
+} from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -80,6 +83,26 @@ export async function POST(
     | EtsyAuthSession
     | null = null;
 
+  let historyContext: {
+    etsyUserId: string;
+    shopId: number;
+    shopName: string;
+    listingId: number;
+    listingTitle: string | null;
+
+    updateTitle: boolean;
+    updateDescription: boolean;
+    updateTags: boolean;
+
+    previousTitle: string | null;
+    previousDescription: string | null;
+    previousTags: string[];
+
+    newTitle: string | null;
+    newDescription: string | null;
+    newTags: string[];
+  } | null = null;
+
   try {
     const body =
       (await request.json()) as UpdateListingContentRequest;
@@ -106,8 +129,7 @@ export async function POST(
       body.updateTitle === true;
 
     const updateDescription =
-      body.updateDescription ===
-      true;
+      body.updateDescription === true;
 
     const updateTags =
       body.updateTags === true;
@@ -217,11 +239,71 @@ export async function POST(
       repositoryAuthSession;
 
     /*
-     * Always derive the shop ID from the authenticated
-     * Etsy account instead of trusting a browser value.
+     * Derive the shop from the authenticated Etsy account.
      */
     const shop =
       await repository.getShop();
+
+    /*
+     * Load the listing before changing it so the update
+     * history contains the real previous Etsy values.
+     */
+    const currentListing =
+      await repository.getListingStatus(
+        listingId,
+      );
+
+    const previousTitle =
+      currentListing.title?.trim() ||
+      null;
+
+    const previousDescription =
+      currentListing.description?.trim() ||
+      null;
+
+    const previousTags =
+      Array.isArray(
+        currentListing.tags,
+      )
+        ? currentListing.tags
+            .map((tag) =>
+              tag.trim(),
+            )
+            .filter(Boolean)
+        : [];
+
+    historyContext = {
+      etsyUserId:
+        authSession.userId,
+      shopId:
+        shop.shopId,
+      shopName:
+        shop.shopName,
+      listingId,
+      listingTitle:
+        previousTitle,
+
+      updateTitle,
+      updateDescription,
+      updateTags,
+
+      previousTitle,
+      previousDescription,
+      previousTags,
+
+      newTitle:
+        updateTitle
+          ? title
+          : previousTitle,
+      newDescription:
+        updateDescription
+          ? description
+          : previousDescription,
+      newTags:
+        updateTags
+          ? tags
+          : previousTags,
+    };
 
     const updatedListing =
       await repository.updateListingContent({
@@ -242,6 +324,81 @@ export async function POST(
             : undefined,
       });
 
+    const finalTitle =
+      updatedListing.title?.trim() ||
+      historyContext.newTitle;
+
+    const finalDescription =
+      updatedListing.description?.trim() ||
+      historyContext.newDescription;
+
+    const finalTags =
+      Array.isArray(
+        updatedListing.tags,
+      )
+        ? updatedListing.tags
+            .map((tag) =>
+              tag.trim(),
+            )
+            .filter(Boolean)
+        : historyContext.newTags;
+
+    const {
+      error: historyInsertError,
+    } = await supabaseAdmin
+      .from(
+        "etsy_listing_update_history",
+      )
+      .insert({
+        etsy_user_id:
+          historyContext.etsyUserId,
+
+        etsy_shop_id:
+          historyContext.shopId,
+        etsy_shop_name:
+          historyContext.shopName,
+
+        etsy_listing_id:
+          historyContext.listingId,
+        listing_title:
+          finalTitle ??
+          historyContext.listingTitle,
+
+        updated_title:
+          historyContext.updateTitle,
+        updated_description:
+          historyContext.updateDescription,
+        updated_tags:
+          historyContext.updateTags,
+
+        previous_title:
+          historyContext.previousTitle,
+        new_title:
+          finalTitle,
+
+        previous_description:
+          historyContext.previousDescription,
+        new_description:
+          finalDescription,
+
+        previous_tags:
+          historyContext.previousTags,
+        new_tags:
+          finalTags,
+
+        update_status:
+          "success",
+        error_message:
+          null,
+      });
+
+    if (historyInsertError) {
+      console.error(
+        "Etsy listing update history insert failed:",
+        historyInsertError,
+      );
+    }
+
     const response =
       NextResponse.json({
         success: true,
@@ -253,20 +410,11 @@ export async function POST(
         shopName:
           shop.shopName,
         title:
-          updatedListing.title ??
-          (updateTitle
-            ? title
-            : null),
+          finalTitle,
         description:
-          updatedListing.description ??
-          (updateDescription
-            ? description
-            : null),
+          finalDescription,
         tags:
-          updatedListing.tags ??
-          (updateTags
-            ? tags
-            : null),
+          finalTags,
         state:
           updatedListing.state ??
           null,
@@ -297,6 +445,69 @@ export async function POST(
       "Etsy listing content update failed:",
       error,
     );
+
+    /*
+     * Record failed Etsy updates only after the authenticated
+     * shop and current listing have been successfully resolved.
+     */
+    if (historyContext) {
+      const {
+        error: failedHistoryInsertError,
+      } = await supabaseAdmin
+        .from(
+          "etsy_listing_update_history",
+        )
+        .insert({
+          etsy_user_id:
+            historyContext.etsyUserId,
+
+          etsy_shop_id:
+            historyContext.shopId,
+          etsy_shop_name:
+            historyContext.shopName,
+
+          etsy_listing_id:
+            historyContext.listingId,
+          listing_title:
+            historyContext.listingTitle,
+
+          updated_title:
+            historyContext.updateTitle,
+          updated_description:
+            historyContext.updateDescription,
+          updated_tags:
+            historyContext.updateTags,
+
+          previous_title:
+            historyContext.previousTitle,
+          new_title:
+            historyContext.newTitle,
+
+          previous_description:
+            historyContext.previousDescription,
+          new_description:
+            historyContext.newDescription,
+
+          previous_tags:
+            historyContext.previousTags,
+          new_tags:
+            historyContext.newTags,
+
+          update_status:
+            "failed",
+          error_message:
+            message,
+        });
+
+      if (
+        failedHistoryInsertError
+      ) {
+        console.error(
+          "Failed Etsy update history insert failed:",
+          failedHistoryInsertError,
+        );
+      }
+    }
 
     const status =
       error instanceof EtsyApiError
