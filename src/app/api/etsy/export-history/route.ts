@@ -99,7 +99,8 @@ export async function GET(
           etsy_state,
           project_cleanup_completed,
           project_cleanup_error,
-          exported_at
+          exported_at,
+          last_etsy_synced_at
         `,
       )
       .eq(
@@ -151,6 +152,8 @@ export async function GET(
             record.project_cleanup_error,
           exportedAt:
             record.exported_at,
+          lastEtsySyncedAt:
+            record.last_etsy_synced_at,
         }),
       );
 
@@ -329,17 +332,15 @@ export async function POST(
         error instanceof EtsyApiError &&
         error.status === 404
       ) {
-        /*
-         * Etsy no longer returns the listing.
-         * Preserve its historical title and URL,
-         * but mark its current state as deleted.
-         */
         nextState =
           "deleted";
       } else {
         throw error;
       }
     }
+
+    const syncedAt =
+      new Date().toISOString();
 
     const {
       error: updateError,
@@ -354,6 +355,8 @@ export async function POST(
           nextTitle,
         listing_url:
           nextUrl,
+        last_etsy_synced_at:
+          syncedAt,
       })
       .eq(
         "id",
@@ -386,6 +389,8 @@ export async function POST(
           nextUrl,
         state:
           nextState,
+        lastEtsySyncedAt:
+          syncedAt,
       });
 
     return applyEtsyAuthCookies(

@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  CheckCircle2,
   ExternalLink,
   FileClock,
   ImageIcon,
@@ -38,6 +39,7 @@ type ExportHistoryItem = {
   projectCleanupCompleted: boolean;
   projectCleanupError: string | null;
   exportedAt: string;
+  lastEtsySyncedAt: string | null;
 };
 
 type ExportHistoryResponse = {
@@ -62,7 +64,33 @@ type SyncEtsyStatusResponse = {
   listingTitle?: string;
   listingUrl?: string | null;
   state?: string;
+  lastEtsySyncedAt?: string;
   error?: string;
+};
+
+type SyncAllResult = {
+  historyId: string;
+  listingId: number;
+  success: boolean;
+  state?: string;
+  listingTitle?: string;
+  listingUrl?: string | null;
+  lastEtsySyncedAt?: string;
+  error?: string;
+};
+
+type SyncAllResponse = {
+  success: boolean;
+  totalCount?: number;
+  successfulCount?: number;
+  failedCount?: number;
+  results?: SyncAllResult[];
+  error?: string;
+};
+
+type SyncSummary = {
+  successfulCount: number;
+  failedCount: number;
 };
 
 function formatDate(
@@ -157,6 +185,18 @@ export default function ExportHistoryPage() {
     setSyncingStatusId,
   ] = useState<string | null>(null);
 
+  const [
+    isSyncingAll,
+    setIsSyncingAll,
+  ] = useState(false);
+
+  const [
+    syncSummary,
+    setSyncSummary,
+  ] = useState<SyncSummary | null>(
+    null,
+  );
+
   const [error, setError] =
     useState("");
 
@@ -164,6 +204,7 @@ export default function ExportHistoryPage() {
     useCallback(async () => {
       setIsLoading(true);
       setError("");
+      setSyncSummary(null);
 
       try {
         const response = await fetch(
@@ -209,6 +250,7 @@ export default function ExportHistoryPage() {
     );
 
     setError("");
+    setSyncSummary(null);
 
     try {
       const response = await fetch(
@@ -287,6 +329,7 @@ export default function ExportHistoryPage() {
     );
 
     setError("");
+    setSyncSummary(null);
 
     try {
       const response = await fetch(
@@ -334,6 +377,9 @@ export default function ExportHistoryPage() {
                     listingUrl:
                       data.listingUrl ??
                       exportItem.listingUrl,
+                    lastEtsySyncedAt:
+                      data.lastEtsySyncedAt ??
+                      exportItem.lastEtsySyncedAt,
                   }
                 : exportItem,
           ),
@@ -351,6 +397,89 @@ export default function ExportHistoryPage() {
     }
   }
 
+  async function syncAllEtsyStatuses() {
+    setIsSyncingAll(true);
+    setError("");
+    setSyncSummary(null);
+
+    try {
+      const response = await fetch(
+        "/api/etsy/export-history/sync-all",
+        {
+          method: "POST",
+        },
+      );
+
+      const data =
+        (await response.json()) as SyncAllResponse;
+
+      if (
+        !response.ok ||
+        !data.success
+      ) {
+        throw new Error(
+          data.error ||
+            "Etsy listing statuses could not be synchronized.",
+        );
+      }
+
+      const results =
+        data.results ?? [];
+
+      setExports(
+        (currentExports) =>
+          currentExports.map(
+            (exportItem) => {
+              const result =
+                results.find(
+                  (item) =>
+                    item.historyId ===
+                    exportItem.id,
+                );
+
+              if (
+                !result ||
+                !result.success
+              ) {
+                return exportItem;
+              }
+
+              return {
+                ...exportItem,
+                state:
+                  result.state ??
+                  exportItem.state,
+                listingTitle:
+                  result.listingTitle ??
+                  exportItem.listingTitle,
+                listingUrl:
+                  result.listingUrl ??
+                  exportItem.listingUrl,
+                lastEtsySyncedAt:
+                  result.lastEtsySyncedAt ??
+                  exportItem.lastEtsySyncedAt,
+              };
+            },
+          ),
+      );
+
+      setSyncSummary({
+        successfulCount:
+          data.successfulCount ?? 0,
+        failedCount:
+          data.failedCount ?? 0,
+      });
+    } catch (syncError) {
+      setError(
+        syncError instanceof Error
+          ? syncError.message
+          : "Etsy listing statuses could not be synchronized.",
+      );
+    } finally {
+      setIsSyncingAll(false);
+    }
+  }
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadExportHistory();
@@ -358,7 +487,8 @@ export default function ExportHistoryPage() {
 
   const isActionRunning =
     retryingCleanupId !== null ||
-    syncingStatusId !== null;
+    syncingStatusId !== null ||
+    isSyncingAll;
 
   return (
     <div className="space-y-6">
@@ -381,27 +511,86 @@ export default function ExportHistoryPage() {
           </div>
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          disabled={
-            isLoading ||
-            isActionRunning
-          }
-          onClick={() =>
-            void loadExportHistory()
-          }
-        >
-          <RefreshCw
-            className={
-              isLoading
-                ? "size-4 animate-spin"
-                : "size-4"
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={
+              isLoading ||
+              isActionRunning ||
+              exports.length === 0
             }
-          />
-          Refresh history
-        </Button>
+            onClick={() =>
+              void syncAllEtsyStatuses()
+            }
+          >
+            {isSyncingAll ? (
+              <>
+                <LoaderCircle className="size-4 animate-spin" />
+                Syncing all…
+              </>
+            ) : (
+              <>
+                <RefreshCw className="size-4" />
+                Sync all statuses
+              </>
+            )}
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            disabled={
+              isLoading ||
+              isActionRunning
+            }
+            onClick={() =>
+              void loadExportHistory()
+            }
+          >
+            <RefreshCw
+              className={
+                isLoading
+                  ? "size-4 animate-spin"
+                  : "size-4"
+              }
+            />
+            Refresh history
+          </Button>
+        </div>
       </div>
+
+      {syncSummary ? (
+        <div
+          className={`flex items-start gap-3 rounded-xl border p-4 text-sm ${
+            syncSummary.failedCount > 0
+              ? "border-amber-200 bg-amber-50 text-amber-800"
+              : "border-emerald-200 bg-emerald-50 text-emerald-800"
+          }`}
+        >
+          {syncSummary.failedCount > 0 ? (
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          ) : (
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+          )}
+
+          <div>
+            <p className="font-medium">
+              Etsy status sync completed
+            </p>
+
+            <p className="mt-1">
+              {
+                syncSummary.successfulCount
+              }{" "}
+              synced successfully
+              {syncSummary.failedCount > 0
+                ? `, ${syncSummary.failedCount} failed.`
+                : "."}
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {error ? (
         <div
@@ -452,16 +641,21 @@ export default function ExportHistoryPage() {
                 syncingStatusId ===
                 exportItem.id;
 
+              const normalizedState =
+                exportItem.state.toLowerCase();
+
               const isDeleted =
-                exportItem.state.toLowerCase() ===
+                normalizedState ===
                 "deleted";
 
               const isDraft =
-                exportItem.state.toLowerCase() ===
+                normalizedState ===
                 "draft";
-                          
+
               const etsyListingUrl =
-                getEtsyListingUrl(exportItem);
+                getEtsyListingUrl(
+                  exportItem,
+                );
 
               return (
                 <Card key={exportItem.id}>
@@ -479,6 +673,14 @@ export default function ExportHistoryPage() {
                           {formatDate(
                             exportItem.exportedAt,
                           )}
+                        </CardDescription>
+
+                        <CardDescription className="mt-1">
+                          {exportItem.lastEtsySyncedAt
+                            ? `Last synced ${formatDate(
+                                exportItem.lastEtsySyncedAt,
+                              )}`
+                            : "Not synced with Etsy yet"}
                         </CardDescription>
                       </div>
 
@@ -637,12 +839,13 @@ export default function ExportHistoryPage() {
                         {isDraft
                           ? "Edit Etsy draft"
                           : "Open Etsy listing"}
-                    
+
                         <ExternalLink className="size-4" />
                       </a>
                     ) : (
                       <div className="rounded-xl border p-3 text-center text-sm text-muted-foreground">
-                        This listing is no longer available on Etsy.
+                        This listing is no longer
+                        available on Etsy.
                       </div>
                     )}
                   </CardContent>
