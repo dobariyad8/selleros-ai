@@ -4,10 +4,24 @@ import {
 } from "next/server";
 
 import {
+  applyEtsyAuthCookies,
+  type EtsyAuthSession,
+} from "@/lib/etsy/auth";
+import {
+  EtsyApiError,
+} from "@/lib/etsy/client";
+import {
+  createEtsyRepository,
+} from "@/lib/etsy/createRepository";
+import {
   supabaseAdmin,
 } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
+
+type SyncExportHistoryRequest = {
+  historyId?: unknown;
+};
 
 function getEtsyUserId(
   request: NextRequest,
@@ -27,6 +41,22 @@ function getEtsyUserId(
       ?.trim();
 
   return userId || null;
+}
+
+function readText(
+  value: unknown,
+) {
+  return typeof value === "string"
+    ? value.trim()
+    : "";
+}
+
+function isValidUuid(
+  value: string,
+) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
 }
 
 export async function GET(
@@ -148,5 +178,273 @@ export async function GET(
         status: 500,
       },
     );
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+) {
+  let authSession:
+    | EtsyAuthSession
+    | null = null;
+
+  try {
+    const body =
+      (await request.json()) as SyncExportHistoryRequest;
+
+    const historyId =
+      readText(
+        body.historyId,
+      );
+
+    if (
+      !historyId ||
+      !isValidUuid(historyId)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "A valid export history ID is required.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    const {
+      repository,
+      authSession:
+        repositoryAuthSession,
+    } =
+      await createEtsyRepository(
+        request,
+      );
+
+    authSession =
+      repositoryAuthSession;
+
+    const etsyUserId =
+      authSession.userId;
+
+    const {
+      data: historyRecord,
+      error: historyError,
+    } = await supabaseAdmin
+      .from(
+        "etsy_export_history",
+      )
+      .select(
+        `
+          id,
+          etsy_listing_id,
+          listing_title,
+          listing_url,
+          etsy_state
+        `,
+      )
+      .eq(
+        "id",
+        historyId,
+      )
+      .eq(
+        "etsy_user_id",
+        etsyUserId,
+      )
+      .maybeSingle();
+
+    if (historyError) {
+      console.error(
+        "Etsy export history sync lookup failed:",
+        historyError,
+      );
+
+      throw new Error(
+        "The export history record could not be loaded.",
+      );
+    }
+
+    if (!historyRecord) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "The export history record was not found.",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
+    const listingId =
+      Number(
+        historyRecord.etsy_listing_id,
+      );
+
+    if (
+      !Number.isInteger(listingId) ||
+      listingId < 1
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "The export history record does not contain a valid Etsy listing ID.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    let nextState =
+      historyRecord.etsy_state;
+
+    let nextTitle =
+      historyRecord.listing_title;
+
+    let nextUrl =
+      historyRecord.listing_url;
+
+    try {
+      const listing =
+        await repository.getListingStatus(
+          listingId,
+        );
+
+      nextState =
+        listing.state;
+
+      nextTitle =
+        listing.title?.trim() ||
+        nextTitle;
+
+      nextUrl =
+        listing.url?.trim() ||
+        nextUrl;
+    } catch (error) {
+      if (
+        error instanceof EtsyApiError &&
+        error.status === 404
+      ) {
+        /*
+         * Etsy no longer returns the listing.
+         * Preserve its historical title and URL,
+         * but mark its current state as deleted.
+         */
+        nextState =
+          "deleted";
+      } else {
+        throw error;
+      }
+    }
+
+    const {
+      error: updateError,
+    } = await supabaseAdmin
+      .from(
+        "etsy_export_history",
+      )
+      .update({
+        etsy_state:
+          nextState,
+        listing_title:
+          nextTitle,
+        listing_url:
+          nextUrl,
+      })
+      .eq(
+        "id",
+        historyId,
+      )
+      .eq(
+        "etsy_user_id",
+        etsyUserId,
+      );
+
+    if (updateError) {
+      console.error(
+        "Etsy export history sync update failed:",
+        updateError,
+      );
+
+      throw new Error(
+        "The Etsy listing status was retrieved, but the export history record could not be updated.",
+      );
+    }
+
+    const response =
+      NextResponse.json({
+        success: true,
+        historyId,
+        listingId,
+        listingTitle:
+          nextTitle,
+        listingUrl:
+          nextUrl,
+        state:
+          nextState,
+      });
+
+    return applyEtsyAuthCookies(
+      response,
+      authSession,
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "The Etsy listing status could not be synchronized.";
+
+    console.error(
+      "Etsy export history synchronization failed:",
+      error,
+    );
+
+    const status =
+      error instanceof EtsyApiError
+        ? error.status
+        : message.includes(
+              "not found",
+            )
+          ? 404
+          : message.includes(
+                "valid",
+              ) ||
+              message.includes(
+                "required",
+              )
+            ? 400
+            : message.includes(
+                  "Connect your Etsy shop",
+                ) ||
+                message.includes(
+                  "access token",
+                ) ||
+                message.includes(
+                  "connection has expired",
+                )
+              ? 401
+              : 500;
+
+    const response =
+      NextResponse.json(
+        {
+          success: false,
+          error: message,
+        },
+        {
+          status,
+        },
+      );
+
+    return authSession
+      ? applyEtsyAuthCookies(
+          response,
+          authSession,
+        )
+      : response;
   }
 }

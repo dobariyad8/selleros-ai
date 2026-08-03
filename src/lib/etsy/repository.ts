@@ -73,6 +73,23 @@ export type EtsyDraftListingResult = {
   url?: string;
 };
 
+export type EtsyListingStatusResult = {
+  listing_id: number;
+  shop_id?: number;
+  title?: string;
+  state:
+    | "active"
+    | "inactive"
+    | "sold_out"
+    | "draft"
+    | "expired";
+  url?: string;
+  quantity?: number;
+  creation_timestamp?: number;
+  ending_timestamp?: number;
+  updated_timestamp?: number;
+};
+
 export type UploadEtsyListingImageInput = {
   shopId: number;
   listingId: number;
@@ -536,6 +553,26 @@ async getSellerTaxonomy(): Promise<EtsyTaxonomyNode[]> {
       body,
     );
   }
+
+  /**
+ * Retrieves the current Etsy state for one listing.
+ */
+async getListingStatus(
+  listingId: number,
+): Promise<EtsyListingStatusResult> {
+  if (
+    !Number.isInteger(listingId) ||
+    listingId < 1
+  ) {
+    throw new Error(
+      "A valid Etsy listing ID is required.",
+    );
+  }
+
+  return this.client.get<EtsyListingStatusResult>(
+    `${ETSY_API_BASE_URL}/listings/${listingId}`,
+  );
+}
 
   /**
    * Deletes an Etsy listing, including an incomplete draft.

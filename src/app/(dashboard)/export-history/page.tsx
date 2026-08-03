@@ -55,6 +55,16 @@ type RetryCleanupResponse = {
   error?: string;
 };
 
+type SyncEtsyStatusResponse = {
+  success: boolean;
+  historyId?: string;
+  listingId?: number;
+  listingTitle?: string;
+  listingUrl?: string | null;
+  state?: string;
+  error?: string;
+};
+
 function formatDate(
   value: string,
 ) {
@@ -92,9 +102,42 @@ function getStateClasses(
     case "inactive":
       return "bg-amber-100 text-amber-700";
 
+    case "sold_out":
+      return "bg-violet-100 text-violet-700";
+
+    case "expired":
+      return "bg-orange-100 text-orange-700";
+
+    case "deleted":
+      return "bg-destructive/10 text-destructive";
+
     default:
       return "bg-muted text-muted-foreground";
   }
+}
+
+function formatStateLabel(
+  state: string,
+) {
+  return state
+    .replaceAll("_", " ")
+    .trim();
+}
+
+function getEtsyListingUrl(
+  exportItem: ExportHistoryItem,
+) {
+  const normalizedState =
+    exportItem.state.toLowerCase();
+
+  if (normalizedState === "draft") {
+    return `https://www.etsy.com/your/shops/me/listing-editor/edit/${exportItem.listingId}`;
+  }
+
+  return (
+    exportItem.listingUrl ||
+    `https://www.etsy.com/listing/${exportItem.listingId}`
+  );
 }
 
 export default function ExportHistoryPage() {
@@ -107,6 +150,11 @@ export default function ExportHistoryPage() {
   const [
     retryingCleanupId,
     setRetryingCleanupId,
+  ] = useState<string | null>(null);
+
+  const [
+    syncingStatusId,
+    setSyncingStatusId,
   ] = useState<string | null>(null);
 
   const [error, setError] =
@@ -231,10 +279,86 @@ export default function ExportHistoryPage() {
     }
   }
 
+  async function syncEtsyStatus(
+    historyId: string,
+  ) {
+    setSyncingStatusId(
+      historyId,
+    );
+
+    setError("");
+
+    try {
+      const response = await fetch(
+        "/api/etsy/export-history",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            historyId,
+          }),
+        },
+      );
+
+      const data =
+        (await response.json()) as SyncEtsyStatusResponse;
+
+      if (
+        !response.ok ||
+        !data.success ||
+        !data.state
+      ) {
+        throw new Error(
+          data.error ||
+            "The Etsy listing status could not be synchronized.",
+        );
+      }
+
+      setExports(
+        (currentExports) =>
+          currentExports.map(
+            (exportItem) =>
+              exportItem.id ===
+              historyId
+                ? {
+                    ...exportItem,
+                    state:
+                      data.state ??
+                      exportItem.state,
+                    listingTitle:
+                      data.listingTitle ??
+                      exportItem.listingTitle,
+                    listingUrl:
+                      data.listingUrl ??
+                      exportItem.listingUrl,
+                  }
+                : exportItem,
+          ),
+      );
+    } catch (syncError) {
+      setError(
+        syncError instanceof Error
+          ? syncError.message
+          : "The Etsy listing status could not be synchronized.",
+      );
+    } finally {
+      setSyncingStatusId(
+        null,
+      );
+    }
+  }
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadExportHistory();
   }, [loadExportHistory]);
+
+  const isActionRunning =
+    retryingCleanupId !== null ||
+    syncingStatusId !== null;
 
   return (
     <div className="space-y-6">
@@ -250,8 +374,9 @@ export default function ExportHistoryPage() {
             </h1>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              Review listings exported from
-              SellerOS to your Etsy shop.
+              Review exported listings and
+              synchronize their current Etsy
+              status.
             </p>
           </div>
         </div>
@@ -261,7 +386,7 @@ export default function ExportHistoryPage() {
           variant="outline"
           disabled={
             isLoading ||
-            retryingCleanupId !== null
+            isActionRunning
           }
           onClick={() =>
             void loadExportHistory()
@@ -274,7 +399,7 @@ export default function ExportHistoryPage() {
                 : "size-4"
             }
           />
-          Refresh
+          Refresh history
         </Button>
       </div>
 
@@ -323,6 +448,21 @@ export default function ExportHistoryPage() {
                 retryingCleanupId ===
                 exportItem.id;
 
+              const isSyncing =
+                syncingStatusId ===
+                exportItem.id;
+
+              const isDeleted =
+                exportItem.state.toLowerCase() ===
+                "deleted";
+
+              const isDraft =
+                exportItem.state.toLowerCase() ===
+                "draft";
+                          
+              const etsyListingUrl =
+                getEtsyListingUrl(exportItem);
+
               return (
                 <Card key={exportItem.id}>
                   <CardHeader>
@@ -347,7 +487,9 @@ export default function ExportHistoryPage() {
                           exportItem.state,
                         )}`}
                       >
-                        {exportItem.state}
+                        {formatStateLabel(
+                          exportItem.state,
+                        )}
                       </span>
                     </div>
                   </CardHeader>
@@ -389,6 +531,51 @@ export default function ExportHistoryPage() {
                       </span>
                     </div>
 
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      disabled={
+                        isActionRunning
+                      }
+                      onClick={() =>
+                        void syncEtsyStatus(
+                          exportItem.id,
+                        )
+                      }
+                    >
+                      {isSyncing ? (
+                        <>
+                          <LoaderCircle className="size-4 animate-spin" />
+                          Syncing Etsy status…
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="size-4" />
+                          Sync Etsy status
+                        </>
+                      )}
+                    </Button>
+
+                    {isDeleted ? (
+                      <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                        <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+
+                        <div>
+                          <p className="font-medium">
+                            Etsy listing deleted
+                          </p>
+
+                          <p className="mt-1">
+                            Etsy no longer returns
+                            this listing. Its export
+                            record remains available
+                            in SellerOS.
+                          </p>
+                        </div>
+                      </div>
+                    ) : null}
+
                     {exportItem.projectCleanupCompleted ? (
                       <div className="rounded-xl border bg-muted/20 p-3 text-sm text-muted-foreground">
                         SellerOS project files were
@@ -417,9 +604,7 @@ export default function ExportHistoryPage() {
                           variant="outline"
                           className="w-full border-amber-300 bg-white text-amber-900 hover:bg-amber-100 hover:text-amber-900"
                           disabled={
-                            isRetrying ||
-                            retryingCleanupId !==
-                              null
+                            isActionRunning
                           }
                           onClick={() =>
                             void retryCleanup(
@@ -442,22 +627,22 @@ export default function ExportHistoryPage() {
                       </div>
                     )}
 
-                    {exportItem.listingUrl ? (
+                    {!isDeleted ? (
                       <a
-                        href={
-                          exportItem.listingUrl
-                        }
+                        href={etsyListingUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex h-9 w-full items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-xs transition-all hover:bg-primary/90"
                       >
-                        Open Etsy listing
+                        {isDraft
+                          ? "Edit Etsy draft"
+                          : "Open Etsy listing"}
+                    
                         <ExternalLink className="size-4" />
                       </a>
                     ) : (
                       <div className="rounded-xl border p-3 text-center text-sm text-muted-foreground">
-                        Etsy did not provide a direct
-                        listing URL.
+                        This listing is no longer available on Etsy.
                       </div>
                     )}
                   </CardContent>
