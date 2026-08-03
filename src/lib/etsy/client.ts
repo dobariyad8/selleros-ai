@@ -365,6 +365,22 @@ export class EtsyClient {
     );
   }
 
+  putForm<T>(
+    url: string,
+    body: URLSearchParams,
+    maxRetries = 3,
+  ): Promise<T> {
+    return this.request<T>(
+      url,
+      {
+        method: "PUT",
+        body,
+        bodyType: "form",
+        maxRetries,
+      },
+    );
+  }
+
   patch<T>(
     url: string,
     body: unknown,
@@ -376,6 +392,22 @@ export class EtsyClient {
         method: "PATCH",
         body,
         bodyType: "json",
+        maxRetries,
+      },
+    );
+  }
+
+  patchForm<T>(
+    url: string,
+    body: URLSearchParams,
+    maxRetries = 3,
+  ): Promise<T> {
+    return this.request<T>(
+      url,
+      {
+        method: "PATCH",
+        body,
+        bodyType: "form",
         maxRetries,
       },
     );

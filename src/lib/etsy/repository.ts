@@ -13,7 +13,7 @@ import type {
 } from "./types";
 
 const ETSY_API_BASE_URL =
-  "https://openapi.etsy.com/v3/application";
+   "https://api.etsy.com/v3/application";
 
 type EtsyRepositoryOptions = {
   apiKey: string;
@@ -87,6 +87,25 @@ export type EtsyListingStatusResult = {
   quantity?: number;
   creation_timestamp?: number;
   ending_timestamp?: number;
+  updated_timestamp?: number;
+};
+
+export type UpdateEtsyListingContentInput = {
+  shopId: number;
+  listingId: number;
+  title?: string;
+  description?: string;
+  tags?: string[];
+};
+
+export type EtsyUpdatedListingResult = {
+  listing_id: number;
+  shop_id?: number;
+  title?: string;
+  description?: string;
+  tags?: string[];
+  state?: string;
+  url?: string;
   updated_timestamp?: number;
 };
 
@@ -553,6 +572,110 @@ async getSellerTaxonomy(): Promise<EtsyTaxonomyNode[]> {
       body,
     );
   }
+
+/**
+ * Manually updates selected content fields on an existing Etsy listing.
+ */
+async updateListingContent(
+  input: UpdateEtsyListingContentInput,
+): Promise<EtsyUpdatedListingResult> {
+  if (
+    !Number.isInteger(input.shopId) ||
+    input.shopId < 1
+  ) {
+    throw new Error(
+      "A valid Etsy shop ID is required.",
+    );
+  }
+
+  if (
+    !Number.isInteger(input.listingId) ||
+    input.listingId < 1
+  ) {
+    throw new Error(
+      "A valid Etsy listing ID is required.",
+    );
+  }
+
+  const body =
+    new URLSearchParams();
+
+  if (input.title !== undefined) {
+    const title =
+      input.title.trim();
+
+    if (!title) {
+      throw new Error(
+        "The Etsy listing title cannot be empty.",
+      );
+    }
+
+    body.append(
+      "title",
+      title,
+    );
+  }
+
+  if (
+    input.description !==
+    undefined
+  ) {
+    const description =
+      input.description.trim();
+
+    if (!description) {
+      throw new Error(
+        "The Etsy listing description cannot be empty.",
+      );
+    }
+
+    body.append(
+      "description",
+      description,
+    );
+  }
+
+  if (input.tags !== undefined) {
+    const tags =
+      input.tags
+        .map((tag) =>
+          tag.trim(),
+        )
+        .filter(Boolean);
+
+    if (tags.length < 1) {
+      throw new Error(
+        "Select at least one valid Etsy tag.",
+      );
+    }
+
+    if (tags.length > 13) {
+      throw new Error(
+        "Etsy allows a maximum of 13 tags.",
+      );
+    }
+
+    body.append(
+      "tags",
+      tags.join(","),
+    );
+  }
+
+  if (
+    !body.has("title") &&
+    !body.has("description") &&
+    !body.has("tags")
+  ) {
+    throw new Error(
+      "Select at least one listing field to update.",
+    );
+  }
+
+  return this.client.patchForm<EtsyUpdatedListingResult>(
+    `${ETSY_API_BASE_URL}/shops/${input.shopId}/listings/${input.listingId}`,
+    body,
+  );
+}
 
   /**
  * Retrieves the current Etsy state for one listing.
