@@ -344,6 +344,7 @@ export async function POST(
         : historyContext.newTags;
 
     const {
+      data: insertedHistory,
       error: historyInsertError,
     } = await supabaseAdmin
       .from(
@@ -352,51 +353,144 @@ export async function POST(
       .insert({
         etsy_user_id:
           historyContext.etsyUserId,
-
+    
         etsy_shop_id:
           historyContext.shopId,
         etsy_shop_name:
           historyContext.shopName,
-
+    
         etsy_listing_id:
           historyContext.listingId,
         listing_title:
           finalTitle ??
           historyContext.listingTitle,
-
+    
         updated_title:
           historyContext.updateTitle,
         updated_description:
           historyContext.updateDescription,
         updated_tags:
           historyContext.updateTags,
-
+    
         previous_title:
           historyContext.previousTitle,
         new_title:
           finalTitle,
-
+    
         previous_description:
           historyContext.previousDescription,
         new_description:
           finalDescription,
-
+    
         previous_tags:
           historyContext.previousTags,
         new_tags:
           finalTags,
-
+    
         update_status:
           "success",
         error_message:
           null,
-      });
-
+      })
+      .select("id")
+      .single();
+    
     if (historyInsertError) {
       console.error(
         "Etsy listing update history insert failed:",
         historyInsertError,
       );
+    }
+
+    let performanceTrackingStarted =
+      false;
+
+    let performanceTrackingError:
+      | string
+      | null = null;
+
+    if (insertedHistory?.id) {
+      try {
+        const metrics =
+          await repository.getListingPerformanceMetrics(
+            shop.shopId,
+            listingId,
+          );
+
+        const {
+          error: snapshotInsertError,
+        } = await supabaseAdmin
+          .from(
+            "etsy_optimization_snapshots",
+          )
+          .insert({
+            etsy_user_id:
+              historyContext.etsyUserId,
+
+            update_history_id:
+              insertedHistory.id,
+
+            etsy_shop_id:
+              historyContext.shopId,
+
+            etsy_listing_id:
+              historyContext.listingId,
+
+            listing_title:
+              metrics.listingTitle ??
+              finalTitle ??
+              historyContext.listingTitle,
+
+            snapshot_stage:
+              "baseline",
+
+            listing_state:
+              metrics.listingState,
+
+            favorite_count:
+              metrics.favoriteCount,
+
+            transaction_count:
+              metrics.transactionCount,
+
+            units_sold:
+              metrics.unitsSold,
+
+            revenue_amount:
+              metrics.revenueAmount,
+
+            revenue_currency:
+              metrics.revenueCurrency,
+
+            snapshot_error:
+              null,
+
+            captured_at:
+              metrics.capturedAt,
+          });
+
+        if (snapshotInsertError) {
+          throw new Error(
+            snapshotInsertError.message,
+          );
+        }
+
+        performanceTrackingStarted =
+          true;
+      } catch (snapshotError) {
+        performanceTrackingError =
+          snapshotError instanceof Error
+            ? snapshotError.message
+            : "The baseline performance snapshot could not be captured.";
+
+        console.error(
+          "Etsy optimization baseline snapshot failed:",
+          snapshotError,
+        );
+      }
+    } else {
+      performanceTrackingError =
+        "The update history record was not created, so performance tracking could not begin.";
     }
 
     const response =
@@ -421,6 +515,13 @@ export async function POST(
         listingUrl:
           updatedListing.url ??
           null,
+        updateHistoryId:
+          insertedHistory?.id ??
+          null,
+            
+        performanceTrackingStarted,
+            
+        performanceTrackingError,
         updatedFields: {
           title:
             updateTitle,

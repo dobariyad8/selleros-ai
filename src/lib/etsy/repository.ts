@@ -87,6 +87,7 @@ export type EtsyListingStatusResult = {
     | "expired";
   url?: string;
   quantity?: number;
+  num_favorers?: number;
   creation_timestamp?: number;
   ending_timestamp?: number;
   updated_timestamp?: number;
@@ -109,6 +110,39 @@ export type EtsyUpdatedListingResult = {
   state?: string;
   url?: string;
   updated_timestamp?: number;
+};
+
+type EtsyMoney = {
+  amount?: number;
+  divisor?: number;
+  currency_code?: string;
+};
+
+type EtsyListingTransaction = {
+  transaction_id: number;
+  listing_id?: number;
+  quantity?: number;
+  price?: EtsyMoney;
+  create_timestamp?: number;
+  created_timestamp?: number;
+  paid_timestamp?: number;
+};
+
+type EtsyListingTransactionsResponse = {
+  count?: number;
+  results?: EtsyListingTransaction[];
+};
+
+export type EtsyListingPerformanceMetrics = {
+  listingId: number;
+  listingTitle: string | null;
+  listingState: string | null;
+  favoriteCount: number;
+  transactionCount: number;
+  unitsSold: number;
+  revenueAmount: number;
+  revenueCurrency: string | null;
+  capturedAt: string;
 };
 
 export type UploadEtsyListingImageInput = {
@@ -697,6 +731,186 @@ async getListingStatus(
   return this.client.get<EtsyListingStatusResult>(
     `${ETSY_API_BASE_URL}/listings/${listingId}`,
   );
+}
+
+/**
+ * Retrieves cumulative Etsy performance metrics for one listing.
+ *
+ * Revenue represents item revenue returned by Etsy transaction
+ * records. It does not include shipping, taxes, fees, refunds,
+ * or advertising costs.
+ */
+async getListingPerformanceMetrics(
+  shopId: number,
+  listingId: number,
+): Promise<EtsyListingPerformanceMetrics> {
+  if (
+    !Number.isInteger(shopId) ||
+    shopId < 1
+  ) {
+    throw new Error(
+      "A valid Etsy shop ID is required.",
+    );
+  }
+
+  if (
+    !Number.isInteger(listingId) ||
+    listingId < 1
+  ) {
+    throw new Error(
+      "A valid Etsy listing ID is required.",
+    );
+  }
+
+  const listing =
+    await this.getListingStatus(
+      listingId,
+    );
+
+  const transactions:
+    EtsyListingTransaction[] = [];
+
+  const limit = 100;
+  let offset = 0;
+  let totalAvailable = 0;
+
+  do {
+    const url = new URL(
+      `${ETSY_API_BASE_URL}/shops/${shopId}/listings/${listingId}/transactions`,
+    );
+
+    url.searchParams.set(
+      "limit",
+      String(limit),
+    );
+
+    url.searchParams.set(
+      "offset",
+      String(offset),
+    );
+
+    const response =
+      await this.client.get<EtsyListingTransactionsResponse>(
+        url.toString(),
+      );
+
+    const page =
+      Array.isArray(
+        response.results,
+      )
+        ? response.results
+        : [];
+
+    transactions.push(
+      ...page,
+    );
+
+    totalAvailable =
+      response.count ??
+      transactions.length;
+
+    offset += page.length;
+
+    if (
+      page.length === 0 ||
+      page.length < limit
+    ) {
+      break;
+    }
+  } while (
+    transactions.length <
+    totalAvailable
+  );
+
+  let unitsSold = 0;
+  let revenueAmount = 0;
+  let revenueCurrency:
+    | string
+    | null = null;
+
+  for (
+    const transaction of transactions
+  ) {
+    const quantity =
+      Number.isFinite(
+        transaction.quantity,
+      ) &&
+      Number(
+        transaction.quantity,
+      ) > 0
+        ? Number(
+            transaction.quantity,
+          )
+        : 0;
+
+    unitsSold += quantity;
+
+    const amount =
+      transaction.price?.amount;
+
+    const divisor =
+      transaction.price?.divisor;
+
+    if (
+      typeof amount === "number" &&
+      Number.isFinite(amount) &&
+      typeof divisor === "number" &&
+      Number.isFinite(divisor) &&
+      divisor > 0
+    ) {
+      /*
+       * Etsy Money values use amount/divisor.
+       * The transaction price is treated as the
+       * line-item amount returned by Etsy.
+       */
+      revenueAmount +=
+        amount / divisor;
+
+      const currency =
+        transaction.price
+          ?.currency_code
+          ?.trim();
+
+      if (
+        currency &&
+        !revenueCurrency
+      ) {
+        revenueCurrency =
+          currency;
+      }
+    }
+  }
+
+  return {
+    listingId:
+      listing.listing_id,
+    listingTitle:
+      listing.title?.trim() ||
+      null,
+    listingState:
+      listing.state ?? null,
+    favoriteCount:
+      Number.isFinite(
+        listing.num_favorers,
+      )
+        ? Math.max(
+            0,
+            Number(
+              listing.num_favorers,
+            ),
+          )
+        : 0,
+    transactionCount:
+      transactions.length,
+    unitsSold,
+    revenueAmount:
+      Number(
+        revenueAmount.toFixed(2),
+      ),
+    revenueCurrency,
+    capturedAt:
+      new Date().toISOString(),
+  };
 }
 
   /**
