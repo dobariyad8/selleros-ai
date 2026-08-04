@@ -7,7 +7,10 @@ type RequiredEnvironmentVariable =
   | "OPENAI_API_KEY"
   | "SUPABASE_URL"
   | "SUPABASE_SECRET_KEY"
-  | "CRON_SECRET";
+  | "CRON_SECRET"
+  | "STRIPE_SECRET_KEY"
+  | "STRIPE_PRO_PRICE_ID"
+  | "STRIPE_WEBHOOK_SECRET";
 
 function getRequiredEnvironmentVariable(
   name: RequiredEnvironmentVariable,
@@ -63,6 +66,24 @@ export const serverEnv = {
   get cronSecret() {
     return getRequiredEnvironmentVariable(
       "CRON_SECRET",
+    );
+  },
+
+  get stripeSecretKey() {
+    return getRequiredEnvironmentVariable(
+      "STRIPE_SECRET_KEY",
+    );
+  },
+
+  get stripeProPriceId() {
+    return getRequiredEnvironmentVariable(
+      "STRIPE_PRO_PRICE_ID",
+    );
+  },
+
+  get stripeWebhookSecret() {
+    return getRequiredEnvironmentVariable(
+      "STRIPE_WEBHOOK_SECRET",
     );
   },
 
