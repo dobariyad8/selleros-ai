@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SellerOS AI
 
-## Getting Started
+SellerOS AI is an AI-powered platform for Etsy sellers.
 
-First, run the development server:
+It helps sellers connect their Etsy shop, analyze listings, improve SEO, generate optimized listing content and images, create new listings, publish changes to Etsy, and track optimization performance.
+
+## Core Features
+
+- Etsy shop connection with OAuth
+- Etsy listing import and management
+- AI Listing Auditor
+- AI title rewriting
+- AI description rewriting
+- AI tag generation
+- AI listing optimization
+- AI-generated listing images
+- Listing project workspace
+- Etsy draft listing export
+- Direct Etsy listing updates
+- Export history
+- Listing update history
+- Optimization performance tracking
+- Seller dashboard and analytics
+- Stripe-powered SellerOS Pro subscriptions
+- Server-side Pro feature enforcement
+
+## Tech Stack
+
+- Next.js 16
+- React 19
+- TypeScript
+- Supabase
+- Etsy API
+- OpenAI API
+- Stripe
+- Vitest
+- GitHub Actions
+
+## Requirements
+
+Install these before running SellerOS locally:
+
+- Node.js 24
+- npm
+- Git
+
+## Local Setup
+
+Clone the repository and install dependencies:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+git clone https://github.com/dobariyad8/selleros-ai.git
+cd selleros-ai
+npm install
