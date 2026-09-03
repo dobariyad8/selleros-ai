@@ -261,8 +261,10 @@ export async function createEtsyRepository(
     connection.connection_status !==
     "active"
   ) {
-    throw new Error(
+    throw new EtsyAccessError(
       "Your Etsy connection is not active. Reconnect your Etsy shop.",
+      403,
+      "ETSY_CONNECTION_INACTIVE",
     );
   }
 
