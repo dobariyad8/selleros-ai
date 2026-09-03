@@ -46,6 +46,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate environment
+        run: npm run validate:env
+
       - name: Run tests
         run: npm test
 
