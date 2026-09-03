@@ -18,49 +18,6 @@ const etsyCookieNames = [
   "etsy_code_verifier",
 ] as const;
 
-function getPublicOrigin(
-  request: NextRequest,
-) {
-  const forwardedHost = request.headers
-    .get("x-forwarded-host")
-    ?.split(",")[0]
-    ?.trim();
-
-  const forwardedProtocol = request.headers
-    .get("x-forwarded-proto")
-    ?.split(",")[0]
-    ?.trim();
-
-  if (forwardedHost) {
-    return `${
-      forwardedProtocol ?? "https"
-    }://${forwardedHost}`;
-  }
-
-  const host = request.headers
-    .get("host")
-    ?.split(",")[0]
-    ?.trim();
-
-  if (
-    host &&
-    !host.startsWith("0.0.0.0")
-  ) {
-    const protocol =
-      host.includes("localhost") ||
-      host.startsWith("127.0.0.1")
-        ? "http"
-        : "https";
-
-    return `${protocol}://${host}`;
-  }
-
-  return request.nextUrl.origin.replace(
-    "://0.0.0.0",
-    "://localhost",
-  );
-}
-
 function clearEtsyCookies(
   response: NextResponse,
 ) {
@@ -86,11 +43,14 @@ function clearEtsyCookies(
 }
 
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
 ) {
+  const appUrl =
+    serverEnv.appUrl.replace(/\/+$/, "");
+
   const redirectUrl = new URL(
     "/settings",
-    getPublicOrigin(request),
+    appUrl,
   );
 
   try {
