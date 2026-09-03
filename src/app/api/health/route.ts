@@ -1,3 +1,4 @@
+import { publicEnv } from "@/lib/env/public";
 import { serverEnv } from "@/lib/env/server";
 
 export const dynamic = "force-dynamic";
@@ -11,18 +12,37 @@ export function GET() {
   const timestamp = new Date().toISOString();
 
   try {
+    void serverEnv.appUrl;
+
     void serverEnv.etsyApiKey;
     void serverEnv.etsySharedSecret;
     void serverEnv.etsyRedirectUri;
+
     void serverEnv.openAiApiKey;
+
+    void serverEnv.supabaseUrl;
+    void serverEnv.supabaseSecretKey;
+
+    void publicEnv.supabaseUrl;
+    void publicEnv.supabasePublishableKey;
+
+    void serverEnv.cronSecret;
+
+    void serverEnv.stripeSecretKey;
+    void serverEnv.stripeProPriceId;
+    void serverEnv.stripeWebhookSecret;
 
     return Response.json(
       {
         status: "ok",
         service: "SellerOS AI",
-        dependencies: {
+        configuration: {
+          application: "configured",
           etsy: "configured",
           openai: "configured",
+          supabase: "configured",
+          cron: "configured",
+          stripe: "configured",
         },
         timestamp,
       },
@@ -42,7 +62,7 @@ export function GET() {
         status: "error",
         service: "SellerOS AI",
         message:
-          "Required server configuration is missing.",
+          "Required application configuration is missing.",
         timestamp,
       },
       {
