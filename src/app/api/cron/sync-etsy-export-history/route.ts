@@ -78,7 +78,7 @@ function isAuthorized(
   );
 }
 
-export async function POST(
+async function handleCronRequest(
   request: NextRequest,
 ) {
   const startedAt =
@@ -556,4 +556,16 @@ export async function POST(
       },
     );
   }
+}
+
+export async function GET(
+  request: NextRequest,
+) {
+  return handleCronRequest(request);
+}
+
+export async function POST(
+  request: NextRequest,
+) {
+  return handleCronRequest(request);
 }
