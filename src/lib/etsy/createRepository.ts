@@ -14,6 +14,29 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 const TOKEN_REFRESH_BUFFER_MILLISECONDS =
   5 * 60 * 1000;
 
+export class EtsyAccessError extends Error {
+  status: number;
+  code:
+    | "UNAUTHENTICATED"
+    | "ETSY_NOT_CONNECTED"
+    | "ETSY_CONNECTION_INACTIVE";
+
+  constructor(
+    message: string,
+    status: number,
+    code:
+      | "UNAUTHENTICATED"
+      | "ETSY_NOT_CONNECTED"
+      | "ETSY_CONNECTION_INACTIVE",
+  ) {
+    super(message);
+
+    this.name = "EtsyAccessError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
 export type EtsyRepositorySession = {
   repository: EtsyRepository;
   authSession: EtsyAuthSession;
@@ -188,8 +211,10 @@ export async function createEtsyRepository(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    throw new Error(
+    throw new EtsyAccessError(
       "Log in to SellerOS before accessing Etsy data.",
+      401,
+      "UNAUTHENTICATED",
     );
   }
 
@@ -222,8 +247,10 @@ export async function createEtsyRepository(
   }
 
   if (!connectionData) {
-    throw new Error(
+    throw new EtsyAccessError(
       "Connect your Etsy shop before continuing.",
+      403,
+      "ETSY_NOT_CONNECTED",
     );
   }
 

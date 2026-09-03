@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { createEtsyRepository } from "@/lib/etsy/createRepository";
+import {
+  createEtsyRepository,
+  EtsyAccessError,
+} from "@/lib/etsy/createRepository";
 import { EtsyApiError } from "@/lib/etsy/client";
 import { applyEtsyAuthCookies } from "@/lib/etsy/auth";
 
@@ -28,6 +31,19 @@ export async function GET(request: NextRequest) {
       );
   } catch (error) {
     console.error(error);
+
+    if (error instanceof EtsyAccessError) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
 
     if (error instanceof EtsyApiError) {
       return NextResponse.json(
