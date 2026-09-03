@@ -195,7 +195,11 @@ async function refreshStoredConnection(
       );
     }
 
-    throw refreshError;
+    throw new EtsyAccessError(
+      "Your Etsy connection has expired. Reconnect your Etsy shop.",
+      403,
+      "ETSY_CONNECTION_INACTIVE",
+    );
   }
 }
 
