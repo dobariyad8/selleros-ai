@@ -9,6 +9,7 @@ import {
 } from "@/lib/etsy/auth";
 import {
   createEtsyRepository,
+  EtsyAccessError,
 } from "@/lib/etsy/createRepository";
 import { serverEnv } from "@/lib/env/server";
 
@@ -147,32 +148,28 @@ export async function GET(
       authSession,
     );
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Could not connect to Etsy.";
-
     console.error(
       "Etsy shop request failed:",
       error,
     );
 
-    const status =
-      message.includes(
-        "Log in to SellerOS",
-      )
-        ? 401
-        : message.includes(
-              "Connect your Etsy shop",
-            ) ||
-            message.includes(
-              "connection is not active",
-            ) ||
-            message.includes(
-              "Reconnect your Etsy shop",
-            )
-          ? 401
-          : 500;
+    if (error instanceof EtsyAccessError) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Could not connect to Etsy.";
 
     const response =
       NextResponse.json(
@@ -181,7 +178,7 @@ export async function GET(
           error: message,
         },
         {
-          status,
+          status: 500,
         },
       );
 
