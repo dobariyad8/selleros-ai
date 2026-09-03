@@ -193,8 +193,10 @@ async function getOwnedEtsyUserId() {
       : "";
 
   if (!etsyUserId) {
-    throw new Error(
+    throw new EtsyAccessError(
       "Connect your Etsy shop before loading optimization results.",
+      403,
+      "ETSY_NOT_CONNECTED",
     );
   }
 
