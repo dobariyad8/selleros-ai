@@ -12,6 +12,7 @@ import {
 } from "@/lib/etsy/client";
 import {
   createEtsyRepository,
+  EtsyAccessError,
 } from "@/lib/etsy/createRepository";
 import {
   supabaseAdmin,
@@ -190,6 +191,19 @@ function getImageFilename(
 function createErrorResponse(
   error: unknown,
 ) {
+  if (error instanceof EtsyAccessError) {
+    return NextResponse.json(
+      {
+        success: false,
+        code: error.code,
+        error: error.message,
+      },
+      {
+        status: error.status,
+      },
+    );
+  }
+
   if (error instanceof EtsyApiError) {
     return NextResponse.json(
       {
@@ -218,24 +232,17 @@ function createErrorResponse(
   const isNotFound =
     message.includes("not found");
 
-  const isAuthenticationError =
-    message.includes("Connect your Etsy shop") ||
-    message.includes("access token") ||
-    message.includes("connection has expired");
-
   return NextResponse.json(
     {
       success: false,
       error: message,
     },
     {
-      status: isAuthenticationError
-        ? 401
-        : isNotFound
-          ? 404
-          : isBadRequest
-            ? 400
-            : 500,
+      status: isNotFound
+      ? 404
+      : isBadRequest
+        ? 400
+        : 500,
     },
   );
 }
