@@ -13,6 +13,7 @@ import {
 } from "@/lib/etsy/auth";
 import {
   createEtsyRepository,
+  EtsyAccessError,
 } from "@/lib/etsy/createRepository";
 import {
   supabaseAdmin,
@@ -680,6 +681,19 @@ export async function GET() {
       );
     }
 
+    if (error instanceof EtsyAccessError) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -690,22 +704,15 @@ export async function GET() {
       error,
     );
 
-    const status =
-      message.includes(
-        "Connect your Etsy shop",
-      )
-        ? 403
-        : 500;
-
     return NextResponse.json(
       {
         success: false,
         error: message,
       },
       {
-        status,
+        status: 500,
       },
-    );
+  );
   }
 }
 
@@ -1023,6 +1030,19 @@ export async function POST(
       );
     }
 
+    if (error instanceof EtsyAccessError) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -1051,17 +1071,7 @@ export async function POST(
                 "required",
               )
           ? 400
-          : message.includes(
-                "Connect your Etsy shop",
-              ) ||
-              message.includes(
-                "access token",
-              ) ||
-              message.includes(
-                "connection has expired",
-              )
-            ? 401
-            : 500;
+          : 500;
 
     const response =
       NextResponse.json(

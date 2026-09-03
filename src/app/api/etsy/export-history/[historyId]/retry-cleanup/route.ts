@@ -13,6 +13,9 @@ import {
 import {
   supabaseAdmin,
 } from "@/lib/supabase/server";
+import {
+  EtsyAccessError,
+} from "@/lib/etsy/createRepository";
 
 export const runtime = "nodejs";
 
@@ -65,8 +68,10 @@ async function getOwnedEtsyUserId() {
       : "";
 
   if (!etsyUserId) {
-    throw new Error(
+    throw new EtsyAccessError(
       "Connect your Etsy shop before retrying project cleanup.",
+      403,
+      "ETSY_NOT_CONNECTED",
     );
   }
 
@@ -279,6 +284,19 @@ export async function POST(
       );
     }
 
+    if (error instanceof EtsyAccessError) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -291,21 +309,17 @@ export async function POST(
 
     const status =
       message.includes(
-        "Connect your Etsy shop",
+        "not found",
       )
-        ? 403
+        ? 404
         : message.includes(
-              "not found",
+              "valid",
+            ) ||
+            message.includes(
+              "does not contain",
             )
-          ? 404
-          : message.includes(
-                "valid",
-              ) ||
-              message.includes(
-                "does not contain",
-              )
-            ? 400
-            : 500;
+          ? 400
+          : 500;
 
     return NextResponse.json(
       {

@@ -9,6 +9,9 @@ import {
 import {
   supabaseAdmin,
 } from "@/lib/supabase/server";
+import {
+  EtsyAccessError,
+} from "@/lib/etsy/createRepository";
 
 export const runtime = "nodejs";
 
@@ -47,8 +50,10 @@ async function getOwnedEtsyUserId() {
       : "";
 
   if (!etsyUserId) {
-    throw new Error(
+    throw new EtsyAccessError(
       "Connect your Etsy shop before loading listing update history.",
+      403,
+      "ETSY_NOT_CONNECTED",
     );
   }
 
@@ -187,6 +192,19 @@ export async function GET() {
       );
     }
 
+    if (error instanceof EtsyAccessError) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -197,20 +215,13 @@ export async function GET() {
       error,
     );
 
-    const status =
-      message.includes(
-        "Connect your Etsy shop",
-      )
-        ? 403
-        : 500;
-
     return NextResponse.json(
       {
         success: false,
         error: message,
       },
       {
-        status,
+        status: 500,
       },
     );
   }

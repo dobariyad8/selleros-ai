@@ -17,6 +17,7 @@ import {
 } from "@/lib/etsy/client";
 import {
   createEtsyRepository,
+  EtsyAccessError,
 } from "@/lib/etsy/createRepository";
 import {
   sleep,
@@ -326,6 +327,19 @@ export async function POST(
         },
       );
     }
+
+    if (error instanceof EtsyAccessError) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
   
     const message =
       error instanceof Error
@@ -340,17 +354,7 @@ export async function POST(
     const status =
       error instanceof EtsyApiError
         ? error.status
-        : message.includes(
-              "Connect your Etsy shop",
-            ) ||
-            message.includes(
-              "access token",
-            ) ||
-            message.includes(
-              "connection has expired",
-            )
-          ? 401
-          : 500;
+        : 500;
 
     const response =
       NextResponse.json(
