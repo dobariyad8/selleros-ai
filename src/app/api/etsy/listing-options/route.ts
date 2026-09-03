@@ -6,6 +6,7 @@ import {
 import { EtsyApiError } from "@/lib/etsy/client";
 import {
   createEtsyRepository,
+  EtsyAccessError,
 } from "@/lib/etsy/createRepository";
 
 import {
@@ -72,6 +73,19 @@ export async function GET(
         },
       );
     }
+
+    if (error instanceof EtsyAccessError) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
   
     console.error(
       "Could not load Etsy listing options:",
@@ -91,16 +105,6 @@ export async function GET(
     }
 
     if (error instanceof Error) {
-      const isAuthenticationError =
-        error.message.includes(
-          "Connect your Etsy shop",
-        ) ||
-        error.message.includes(
-          "access token",
-        ) ||
-        error.message.includes(
-          "connection has expired",
-        );
 
       return NextResponse.json(
         {
@@ -108,10 +112,7 @@ export async function GET(
           error: error.message,
         },
         {
-          status:
-            isAuthenticationError
-              ? 401
-              : 500,
+          status: 500,
         },
       );
     }
