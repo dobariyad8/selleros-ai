@@ -101,13 +101,15 @@ export async function GET() {
       });
     }
 
-    const activeStatuses = new Set([
-      "active",
-      "trialing",
-      "past_due",
-      "unpaid",
-      "paused",
-    ]);
+    const existingSubscriptionStatuses =
+      new Set([
+        "incomplete",
+        "active",
+        "trialing",
+        "past_due",
+        "unpaid",
+        "paused",
+      ]);
 
     return NextResponse.json({
       success: true,
@@ -142,7 +144,7 @@ export async function GET() {
 
         canStartCheckout:
           !subscription.stripe_subscription_id ||
-          !activeStatuses.has(
+          !existingSubscriptionStatuses.has(
             subscription.subscription_status,
           ),
 

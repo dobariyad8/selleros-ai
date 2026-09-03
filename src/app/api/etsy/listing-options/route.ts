@@ -8,10 +8,16 @@ import {
   createEtsyRepository,
 } from "@/lib/etsy/createRepository";
 
+import {
+  requireProSubscription,
+  SubscriptionAccessError,
+} from "@/lib/billing/requireProSubscription";
+
 export async function GET(
   request: NextRequest,
 ) {
   try {
+    await requireProSubscription();
     const {
       repository,
       authSession,
@@ -51,11 +57,27 @@ export async function GET(
       authSession,
     );
   } catch (error) {
+    if (
+      error instanceof
+      SubscriptionAccessError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+  
     console.error(
       "Could not load Etsy listing options:",
       error,
     );
-
+  
     if (error instanceof EtsyApiError) {
       return NextResponse.json(
         {

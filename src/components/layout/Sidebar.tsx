@@ -164,9 +164,22 @@ export default function Sidebar() {
                             >
                               <ChildIcon className="size-4 shrink-0" />
 
-                              <span className="min-w-0 truncate">
+                              <span className="min-w-0 flex-1 truncate">
                                 {child.name}
                               </span>
+
+                              {child.proOnly ? (
+                                <span
+                                  className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                    isActive
+                                      ? "bg-primary-foreground/15 text-primary-foreground"
+                                      : "bg-primary/10 text-primary"
+                                  }`}
+                                >
+                                  <Sparkles className="size-2.5" />
+                                  Pro
+                                </span>
+                              ) : null}
                             </Link>
                           );
                         },
@@ -198,9 +211,22 @@ export default function Sidebar() {
               >
                 <Icon className="size-4 shrink-0" />
 
-                <span className="min-w-0 truncate">
+                <span className="min-w-0 flex-1 truncate">
                   {item.name}
                 </span>
+                              
+                {item.proOnly ? (
+                  <span
+                    className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                      isActive
+                        ? "bg-primary-foreground/15 text-primary-foreground"
+                        : "bg-primary/10 text-primary"
+                    }`}
+                  >
+                    <Sparkles className="size-2.5" />
+                    Pro
+                  </span>
+                ) : null}
               </Link>
             );
           })}

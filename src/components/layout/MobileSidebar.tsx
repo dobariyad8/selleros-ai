@@ -240,13 +240,23 @@ export default function MobileSidebar() {
                                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                                   }`}
                                 >
-                                  <ChildIcon className="size-4 shrink-0" />
+                                <ChildIcon className="size-4 shrink-0" />
 
-                                  <span className="min-w-0 truncate">
-                                    {
-                                      child.name
-                                    }
+                                <span className="min-w-0 flex-1 truncate">
+                                  {child.name}
+                                </span>
+
+                                {child.proOnly ? (
+                                  <span
+                                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                                      isActive
+                                        ? "bg-primary-foreground/15 text-primary-foreground"
+                                        : "bg-primary/10 text-primary"
+                                    }`}
+                                  >
+                                    Pro
                                   </span>
+                                ) : null}
                                 </Link>
                               );
                             },
@@ -287,9 +297,21 @@ export default function MobileSidebar() {
                   >
                     <Icon className="size-4 shrink-0" />
 
-                    <span className="min-w-0 truncate">
+                    <span className="min-w-0 flex-1 truncate">
                       {item.name}
                     </span>
+                                      
+                    {item.proOnly ? (
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                          isActive
+                            ? "bg-primary-foreground/15 text-primary-foreground"
+                            : "bg-primary/10 text-primary"
+                        }`}
+                      >
+                        Pro
+                      </span>
+                    ) : null}
                   </Link>
                 );
               },

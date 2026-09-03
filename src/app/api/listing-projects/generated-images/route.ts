@@ -4,6 +4,10 @@ import {
 } from "next/server";
 
 import {
+  requireProSubscription,
+  SubscriptionAccessError,
+} from "@/lib/billing/requireProSubscription";
+import {
   saveListingProjectImage,
   type ListingProjectImageKind,
 } from "@/lib/listing-projects/listingProjectImages";
@@ -36,24 +40,6 @@ function readText(
     : "";
 }
 
-function getEtsyUserId(
-  request: NextRequest,
-) {
-  const accessToken =
-    request.cookies.get(
-      "etsy_access_token",
-    )?.value;
-
-  if (!accessToken) {
-    return null;
-  }
-
-  const userId =
-    accessToken.split(".")[0]?.trim();
-
-  return userId || null;
-}
-
 function isValidUuid(
   value: string,
 ) {
@@ -62,25 +48,55 @@ function isValidUuid(
   );
 }
 
+async function getOwnedEtsyUserId() {
+  const { user } =
+    await requireProSubscription();
+
+  const {
+    data: connection,
+    error: connectionError,
+  } = await supabaseAdmin
+    .from("etsy_connections")
+    .select("etsy_user_id")
+    .eq("user_id", user.id)
+    .eq(
+      "connection_status",
+      "active",
+    )
+    .maybeSingle();
+
+  if (connectionError) {
+    console.error(
+      "Generated image Etsy connection lookup failed:",
+      connectionError,
+    );
+
+    throw new Error(
+      "SellerOS could not load your Etsy connection.",
+    );
+  }
+
+  const etsyUserId =
+    typeof connection?.etsy_user_id ===
+    "string"
+      ? connection.etsy_user_id.trim()
+      : "";
+
+  if (!etsyUserId) {
+    throw new Error(
+      "Connect your Etsy shop before saving generated images.",
+    );
+  }
+
+  return etsyUserId;
+}
+
 export async function POST(
   request: NextRequest,
 ) {
   try {
     const etsyUserId =
-      getEtsyUserId(request);
-
-    if (!etsyUserId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Connect your Etsy shop before saving generated images.",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
+      await getOwnedEtsyUserId();
 
     const formData =
       await request.formData();
@@ -307,6 +323,22 @@ export async function POST(
       },
     });
   } catch (error) {
+    if (
+      error instanceof
+      SubscriptionAccessError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -317,13 +349,24 @@ export async function POST(
       error,
     );
 
+    const status =
+      message.includes(
+        "Connect your Etsy shop",
+      )
+        ? 403
+        : message.includes(
+              "not found",
+            )
+          ? 404
+          : 500;
+
     return NextResponse.json(
       {
         success: false,
         error: message,
       },
       {
-        status: 500,
+        status,
       },
     );
   }

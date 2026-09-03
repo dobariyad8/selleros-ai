@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useRef,} from "react";
 import {
   useParams,
@@ -7,6 +8,7 @@ import {
 } from "next/navigation";
 
 import { useListings } from "@/hooks/useListings";
+import { useSubscription } from "@/hooks/useSubscription";
 
 import AuditScoreCard from "@/components/ai/AuditScoreCard";
 import OpportunityCard from "@/components/ai/OpportunityCard";
@@ -23,7 +25,11 @@ import { calculateOverallScore } from "@/lib/scoring/overallScore";
 import ListingPreviewCard from "@/components/ai/ListingPreviewCard";
 import OptimizationTabs from "@/components/ai/OptimizationTabs";
 
-import { Trash2 } from "lucide-react";
+import {
+  LockKeyhole,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   clearOptimizationDraft,
@@ -44,6 +50,11 @@ export default function AuditPage() {
   }>();
 
   const searchParams = useSearchParams();
+
+  const {
+    hasProAccess,
+    isLoading: isSubscriptionLoading,
+  } = useSubscription();
 
   const focus =
     searchParams.get("focus");
@@ -242,7 +253,10 @@ const tagsCardRef =
       String(item.id) === listingId,
   );
 
-  if (isLoading) {
+  if (
+    isLoading ||
+    isSubscriptionLoading
+  ) {
     return (
       <div className="mx-auto w-full min-w-0 max-w-7xl space-y-5 px-3 sm:space-y-8 sm:px-4 lg:px-0">
         <div className="space-y-3">
@@ -482,31 +496,82 @@ const tagsCardRef =
       </div>
 
       <div className="min-w-0">
-        <OptimizationTabs
-          listing={listing}
-          focus={focus}
-
-          suggestedTitle={suggestedTitle}
-          setSuggestedTitle={setSuggestedTitle}
-
-          suggestedDescription={
-            suggestedDescription
-          }
-          setSuggestedDescription={
-            setSuggestedDescription
-          }
+        {hasProAccess ? (
+          <OptimizationTabs
+            listing={listing}
+            focus={focus}
         
-          suggestedTags={suggestedTags}
-          setSuggestedTags={setSuggestedTags}
+            suggestedTitle={suggestedTitle}
+            setSuggestedTitle={
+              setSuggestedTitle
+            }
+          
+            suggestedDescription={
+              suggestedDescription
+            }
+            setSuggestedDescription={
+              setSuggestedDescription
+            }
+          
+            suggestedTags={suggestedTags}
+            setSuggestedTags={
+              setSuggestedTags
+            }
+          
+            optimizationVersion={
+              optimizationVersion
+            }
+          
+            onOptimizationComplete={
+              handleOptimizationComplete
+            }
+          />
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-primary/20 bg-card">
+            <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 items-start gap-4">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <LockKeyhole className="size-5" />
+                </div>
         
-          optimizationVersion={
-            optimizationVersion
-          }
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-lg font-semibold">
+                      AI Optimization requires SellerOS Pro
+                    </h2>
         
-          onOptimizationComplete={
-            handleOptimizationComplete
-          }
-        />
+                    <span className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-xs font-medium">
+                      <Sparkles className="size-3" />
+                      Pro
+                    </span>
+                  </div>
+        
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                    Upgrade to generate optimized titles,
+                    descriptions, tags, and complete listing
+                    recommendations with AI.
+                  </p>
+        
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Your listing scores and analysis remain
+                    available without Pro.
+                  </p>
+                </div>
+              </div>
+        
+              <Button
+                nativeButton={false}
+                className="w-full shrink-0 lg:w-auto"
+                render={
+                  <Link href="/subscription" />
+                }
+              >
+                <Sparkles className="size-4" />
+                Upgrade to Pro
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="min-w-0">

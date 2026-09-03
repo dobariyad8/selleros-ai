@@ -4,6 +4,12 @@ import {
 } from "next/server";
 
 import { serverEnv } from "@/lib/env/server";
+import {
+  createSupabaseServerClient,
+} from "@/lib/supabase/auth-server";
+import {
+  supabaseAdmin,
+} from "@/lib/supabase/server";
 
 const etsyCookieNames = [
   "etsy_access_token",
@@ -12,7 +18,9 @@ const etsyCookieNames = [
   "etsy_code_verifier",
 ] as const;
 
-function getPublicOrigin(request: NextRequest) {
+function getPublicOrigin(
+  request: NextRequest,
+) {
   const forwardedHost = request.headers
     .get("x-forwarded-host")
     ?.split(",")[0]
@@ -53,32 +61,135 @@ function getPublicOrigin(request: NextRequest) {
   );
 }
 
-export function POST(request: NextRequest) {
+function clearEtsyCookies(
+  response: NextResponse,
+) {
+  for (
+    const cookieName of etsyCookieNames
+  ) {
+    response.cookies.set(
+      cookieName,
+      "",
+      {
+        httpOnly: true,
+        secure:
+          serverEnv.isProduction,
+        sameSite: "lax",
+        path: "/",
+        expires: new Date(0),
+        maxAge: 0,
+      },
+    );
+  }
+
+  return response;
+}
+
+export async function POST(
+  request: NextRequest,
+) {
   const redirectUrl = new URL(
     "/settings",
     getPublicOrigin(request),
   );
 
-  redirectUrl.searchParams.set(
-    "etsy",
-    "disconnected",
-  );
+  try {
+    const supabase =
+      await createSupabaseServerClient();
 
-  const response = NextResponse.redirect(
-    redirectUrl,
-    303,
-  );
+    const {
+      data: {
+        user,
+      },
+      error: authError,
+    } =
+      await supabase.auth.getUser();
 
-  for (const cookieName of etsyCookieNames) {
-    response.cookies.set(cookieName, "", {
-      httpOnly: true,
-      secure: serverEnv.isProduction,
-      sameSite: "lax",
-      path: "/",
-      expires: new Date(0),
-      maxAge: 0,
-    });
+    if (
+      authError ||
+      !user
+    ) {
+      redirectUrl.searchParams.set(
+        "etsy",
+        "disconnect_failed",
+      );
+
+      const response =
+        NextResponse.redirect(
+          redirectUrl,
+          303,
+        );
+
+      return clearEtsyCookies(
+        response,
+      );
+    }
+
+    const {
+      error: deleteError,
+    } = await supabaseAdmin
+      .from("etsy_connections")
+      .delete()
+      .eq(
+        "user_id",
+        user.id,
+      );
+
+    if (deleteError) {
+      console.error(
+        "Etsy connection disconnect failed:",
+        deleteError,
+      );
+
+      redirectUrl.searchParams.set(
+        "etsy",
+        "disconnect_failed",
+      );
+
+      const response =
+        NextResponse.redirect(
+          redirectUrl,
+          303,
+        );
+
+      return clearEtsyCookies(
+        response,
+      );
+    }
+
+    redirectUrl.searchParams.set(
+      "etsy",
+      "disconnected",
+    );
+
+    const response =
+      NextResponse.redirect(
+        redirectUrl,
+        303,
+      );
+
+    return clearEtsyCookies(
+      response,
+    );
+  } catch (error) {
+    console.error(
+      "Etsy disconnect failed:",
+      error,
+    );
+
+    redirectUrl.searchParams.set(
+      "etsy",
+      "disconnect_failed",
+    );
+
+    const response =
+      NextResponse.redirect(
+        redirectUrl,
+        303,
+      );
+
+    return clearEtsyCookies(
+      response,
+    );
   }
-
-  return response;
 }

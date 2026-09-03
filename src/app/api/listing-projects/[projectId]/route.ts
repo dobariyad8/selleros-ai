@@ -3,28 +3,14 @@ import {
   NextResponse,
 } from "next/server";
 
+import {
+  requireProSubscription,
+  SubscriptionAccessError,
+} from "@/lib/billing/requireProSubscription";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 const LISTING_IMAGE_BUCKET =
   "listing-project-images";
-
-function getEtsyUserId(
-  request: NextRequest,
-) {
-  const accessToken =
-    request.cookies.get(
-      "etsy_access_token",
-    )?.value;
-
-  if (!accessToken) {
-    return null;
-  }
-
-  const userId =
-    accessToken.split(".")[0]?.trim();
-
-  return userId || null;
-}
 
 function isValidUuid(
   value: string,
@@ -40,26 +26,56 @@ type RouteContext = {
   }>;
 };
 
+async function getOwnedEtsyUserId() {
+  const { user } =
+    await requireProSubscription();
+
+  const {
+    data: connection,
+    error: connectionError,
+  } = await supabaseAdmin
+    .from("etsy_connections")
+    .select("etsy_user_id")
+    .eq("user_id", user.id)
+    .eq(
+      "connection_status",
+      "active",
+    )
+    .maybeSingle();
+
+  if (connectionError) {
+    console.error(
+      "Listing project delete Etsy connection lookup failed:",
+      connectionError,
+    );
+
+    throw new Error(
+      "SellerOS could not load your Etsy connection.",
+    );
+  }
+
+  const etsyUserId =
+    typeof connection?.etsy_user_id ===
+    "string"
+      ? connection.etsy_user_id.trim()
+      : "";
+
+  if (!etsyUserId) {
+    throw new Error(
+      "Connect your Etsy shop before deleting a listing project.",
+    );
+  }
+
+  return etsyUserId;
+}
+
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   context: RouteContext,
 ) {
   try {
     const etsyUserId =
-      getEtsyUserId(request);
-
-    if (!etsyUserId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Connect your Etsy shop before deleting a listing project.",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
+      await getOwnedEtsyUserId();
 
     const { projectId: rawProjectId } =
       await context.params;
@@ -212,6 +228,22 @@ export async function DELETE(
       projectId,
     });
   } catch (error) {
+    if (
+      error instanceof
+      SubscriptionAccessError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -222,13 +254,31 @@ export async function DELETE(
       error,
     );
 
+    const status =
+      message.includes(
+        "Connect your Etsy shop",
+      )
+        ? 403
+        : message.includes(
+              "not found",
+            )
+          ? 404
+          : message.includes(
+                "valid",
+              ) ||
+              message.includes(
+                "required",
+              )
+            ? 400
+            : 500;
+
     return NextResponse.json(
       {
         success: false,
         error: message,
       },
       {
-        status: 500,
+        status,
       },
     );
   }

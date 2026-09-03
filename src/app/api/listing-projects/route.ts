@@ -3,26 +3,12 @@ import {
   NextResponse,
 } from "next/server";
 
-import { supabaseAdmin } from "@/lib/supabase/server";
+import {
+  requireProSubscription,
+  SubscriptionAccessError,
+} from "@/lib/billing/requireProSubscription";
 import { saveListingProjectChanges } from "@/lib/listing-projects/listingProjects";
-
-function getEtsyUserId(
-  request: NextRequest,
-) {
-  const accessToken =
-    request.cookies.get(
-      "etsy_access_token",
-    )?.value;
-
-  if (!accessToken) {
-    return null;
-  }
-
-  const userId =
-    accessToken.split(".")[0]?.trim();
-
-  return userId || null;
-}
+import { supabaseAdmin } from "@/lib/supabase/server";
 
 function isValidUuid(
   value: string,
@@ -113,25 +99,52 @@ function readStringArray(
   return value;
 }
 
+async function getOwnedEtsyUserId() {
+  const { user } =
+    await requireProSubscription();
+
+  const {
+    data: connection,
+    error: connectionError,
+  } = await supabaseAdmin
+    .from("etsy_connections")
+    .select("etsy_user_id")
+    .eq("user_id", user.id)
+    .eq("connection_status", "active")
+    .maybeSingle();
+
+  if (connectionError) {
+    console.error(
+      "Listing project Etsy connection lookup failed:",
+      connectionError,
+    );
+
+    throw new Error(
+      "SellerOS could not load your Etsy connection.",
+    );
+  }
+
+  const etsyUserId =
+    typeof connection?.etsy_user_id ===
+    "string"
+      ? connection.etsy_user_id.trim()
+      : "";
+
+  if (!etsyUserId) {
+    throw new Error(
+      "Connect your Etsy shop before using listing projects.",
+    );
+  }
+
+  return etsyUserId;
+}
+
 export async function GET(
   request: NextRequest,
 ) {
   try {
     const etsyUserId =
-      getEtsyUserId(request);
-
-    if (!etsyUserId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Connect your Etsy shop before loading listing projects.",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
+      await getOwnedEtsyUserId();
 
     const requestedProjectId =
       request.nextUrl.searchParams
@@ -254,26 +267,19 @@ export async function GET(
 
           formData: {
             productName:
-              project.product_name ??
-              "",
+              project.product_name ?? "",
             productDescription:
-              project.product_description ??
-              "",
+              project.product_description ?? "",
             productType:
-              project.product_type ??
-              "",
+              project.product_type ?? "",
             materials:
-              project.source_materials ??
-              "",
+              project.source_materials ?? "",
             primaryColor:
-              project.primary_color ??
-              "",
+              project.primary_color ?? "",
             secondaryColor:
-              project.secondary_color ??
-              "",
+              project.secondary_color ?? "",
             dimensions:
-              project.dimensions ??
-              "",
+              project.dimensions ?? "",
             price:
               project.price === null
                 ? ""
@@ -281,17 +287,13 @@ export async function GET(
             quantity:
               project.quantity === null
                 ? "1"
-                : String(
-                    project.quantity,
-                  ),
+                : String(project.quantity),
             occasion:
               project.occasion ?? "",
             personalization:
-              project.personalization ??
-              "no",
+              project.personalization ?? "no",
             productionTime:
-              project.production_time ??
-              "",
+              project.production_time ?? "",
           },
 
           listingPackage:
@@ -303,17 +305,13 @@ export async function GET(
                   description:
                     project.generated_description,
                   tags:
-                    project.generated_tags ??
-                    [],
+                    project.generated_tags ?? [],
                   materials:
-                    project.generated_materials ??
-                    [],
+                    project.generated_materials ?? [],
                   highlights:
-                    project.generated_highlights ??
-                    [],
+                    project.generated_highlights ?? [],
                   imagePlan:
-                    project.image_plan ??
-                    [],
+                    project.image_plan ?? [],
                 }
               : null,
 
@@ -456,14 +454,11 @@ export async function GET(
             generatedDescription:
               project.generated_description,
             generatedTags:
-              project.generated_tags ??
-              [],
+              project.generated_tags ?? [],
             generatedMaterials:
-              project.generated_materials ??
-              [],
+              project.generated_materials ?? [],
             generatedHighlights:
-              project.generated_highlights ??
-              [],
+              project.generated_highlights ?? [],
             imagePlan:
               project.image_plan ?? [],
             sourceImageCount,
@@ -487,6 +482,22 @@ export async function GET(
       projects: results,
     });
   } catch (error) {
+    if (
+      error instanceof
+      SubscriptionAccessError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -497,13 +508,20 @@ export async function GET(
       error,
     );
 
+    const status =
+      message.includes(
+        "Connect your Etsy shop",
+      )
+        ? 403
+        : 500;
+
     return NextResponse.json(
       {
         success: false,
         error: message,
       },
       {
-        status: 500,
+        status,
       },
     );
   }
@@ -514,20 +532,7 @@ export async function PATCH(
 ) {
   try {
     const etsyUserId =
-      getEtsyUserId(request);
-
-    if (!etsyUserId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Connect your Etsy shop before saving listing changes.",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
+      await getOwnedEtsyUserId();
 
     const body =
       (await request.json()) as SaveListingProjectRequest;
@@ -768,6 +773,22 @@ export async function PATCH(
         savedProject.updated_at,
     });
   } catch (error) {
+    if (
+      error instanceof
+      SubscriptionAccessError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -784,7 +805,11 @@ export async function PATCH(
       message.includes("must be") ||
       message.includes("Exactly")
         ? 400
-        : 500;
+        : message.includes(
+              "Connect your Etsy shop",
+            )
+          ? 403
+          : 500;
 
     return NextResponse.json(
       {

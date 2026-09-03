@@ -4,6 +4,7 @@ import {
   Download,
   ImageIcon,
   LoaderCircle,
+  LockKeyhole,
   RefreshCw,
   Save,
   Sparkles,
@@ -13,6 +14,8 @@ import {
   useMemo,
   useState,
 } from "react";
+
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +34,7 @@ import {
   dataUrlToBlob,
   saveAiImage,
 } from "@/lib/images/imageLibrary";
+import { useSubscription } from "@/hooks/useSubscription";
 
 type Props = {
   listing: SellerOsListing;
@@ -124,6 +128,11 @@ function getDownloadExtension(
 export default function AIImageGeneratorCard({
   listing,
 }: Props) {
+  const {
+    hasProAccess,
+    isLoading: isSubscriptionLoading,
+  } = useSubscription();
+
   const usableImages = useMemo(
     () =>
       [
@@ -203,6 +212,14 @@ export default function AIImageGeneratorCard({
       : 0;
 
   async function loadImageUsage() {
+    if (
+      isSubscriptionLoading ||
+      !hasProAccess
+    ) {
+      setIsLoadingUsage(false);
+      return;
+    }
+
     setIsLoadingUsage(true);
     setUsageError("");
 
@@ -242,11 +259,30 @@ export default function AIImageGeneratorCard({
   }
 
   useEffect(() => {
+    if (
+      isSubscriptionLoading ||
+      !hasProAccess
+    ) {
+      return;
+    }
+
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadImageUsage();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    hasProAccess,
+    isSubscriptionLoading,
+  ]);
 
   async function generateImage() {
+    if (!hasProAccess) {
+      setError(
+        "SellerOS Pro is required to generate AI images.",
+      );
+    
+      return;
+    }
+
     if (!selectedImageUrl) {
       setError(
         "Select a source image before generating.",
@@ -451,6 +487,93 @@ export default function AIImageGeneratorCard({
     } finally {
       setSavingImageId(null);
     }
+  }
+
+  if (isSubscriptionLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="size-5" />
+            AI Image Studio
+          </CardTitle>
+
+          <CardDescription>
+            Create an Etsy-ready presentation using
+            one of your real product photos as the
+            source.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <div className="flex min-h-32 items-center justify-center rounded-xl border">
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <LoaderCircle className="size-4 animate-spin" />
+              Checking your SellerOS plan…
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!hasProAccess) {
+    return (
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="size-5" />
+            AI Image Studio
+          </CardTitle>
+    
+          <CardDescription>
+            Create Etsy-ready product presentations
+            from your existing listing photos.
+          </CardDescription>
+        </CardHeader>
+    
+        <CardContent>
+          <div className="flex flex-col gap-5 rounded-xl border bg-muted/20 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-4">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <LockKeyhole className="size-5" />
+              </div>
+    
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold">
+                    AI Image Studio requires SellerOS Pro
+                  </p>
+    
+                  <span className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-xs font-medium">
+                    <Sparkles className="size-3" />
+                    Pro
+                  </span>
+                </div>
+    
+                <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+                  Upgrade to generate studio,
+                  lifestyle, gift, seasonal, and
+                  listing-thumbnail images from your
+                  real Etsy product photos.
+                </p>
+              </div>
+            </div>
+    
+            <Button
+              nativeButton={false}
+              className="w-full shrink-0 sm:w-auto"
+              render={
+                <Link href="/subscription" />
+              }
+            >
+              <Sparkles className="size-4" />
+              Upgrade to Pro
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (usableImages.length === 0) {

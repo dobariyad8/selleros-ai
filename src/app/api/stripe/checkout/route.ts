@@ -15,7 +15,7 @@ type SubscriptionRecord = {
 };
 
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
 ) {
   try {
     const supabase =
@@ -87,17 +87,19 @@ export async function POST(
     const existingSubscription =
       subscriptionData as SubscriptionRecord | null;
 
-    const activeStatuses = new Set([
-      "active",
-      "trialing",
-      "past_due",
-      "unpaid",
-      "paused",
-    ]);
+    const existingSubscriptionStatuses =
+  new Set([
+    "incomplete",
+    "active",
+    "trialing",
+    "past_due",
+    "unpaid",
+    "paused",
+  ]);
 
     if (
       existingSubscription?.stripe_subscription_id &&
-      activeStatuses.has(
+      existingSubscriptionStatuses.has(
         existingSubscription.subscription_status,
       )
     ) {
@@ -113,9 +115,11 @@ export async function POST(
       );
     }
 
-    const origin =
-      request.headers.get("origin") ??
-      request.nextUrl.origin;
+    const appUrl =
+  serverEnv.appUrl.replace(
+    /\/+$/,
+    "",
+  );
 
     const checkoutSession =
       await stripe.checkout.sessions.create({
@@ -130,10 +134,10 @@ export async function POST(
         ],
 
         success_url:
-          `${origin}/subscription?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+          `${appUrl}/subscription?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
 
         cancel_url:
-          `${origin}/subscription?checkout=cancelled`,
+          `${appUrl}/subscription?checkout=cancelled`,
 
         client_reference_id: user.id,
 

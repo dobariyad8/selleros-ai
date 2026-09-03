@@ -4,6 +4,10 @@ import {
 } from "next/server";
 
 import {
+  requireProSubscription,
+  SubscriptionAccessError,
+} from "@/lib/billing/requireProSubscription";
+import {
   applyEtsyAuthCookies,
   type EtsyAuthSession,
 } from "@/lib/etsy/auth";
@@ -23,26 +27,6 @@ type SyncExportHistoryRequest = {
   historyId?: unknown;
 };
 
-function getEtsyUserId(
-  request: NextRequest,
-) {
-  const accessToken =
-    request.cookies.get(
-      "etsy_access_token",
-    )?.value;
-
-  if (!accessToken) {
-    return null;
-  }
-
-  const userId =
-    accessToken
-      .split(".")[0]
-      ?.trim();
-
-  return userId || null;
-}
-
 function readText(
   value: unknown,
 ) {
@@ -59,25 +43,53 @@ function isValidUuid(
   );
 }
 
-export async function GET(
-  request: NextRequest,
-) {
+async function getOwnedEtsyUserId() {
+  const { user } =
+    await requireProSubscription();
+
+  const {
+    data: connection,
+    error: connectionError,
+  } = await supabaseAdmin
+    .from("etsy_connections")
+    .select("etsy_user_id")
+    .eq("user_id", user.id)
+    .eq(
+      "connection_status",
+      "active",
+    )
+    .maybeSingle();
+
+  if (connectionError) {
+    console.error(
+      "Export history Etsy connection lookup failed:",
+      connectionError,
+    );
+
+    throw new Error(
+      "SellerOS could not load your Etsy connection.",
+    );
+  }
+
+  const etsyUserId =
+    typeof connection?.etsy_user_id ===
+    "string"
+      ? connection.etsy_user_id.trim()
+      : "";
+
+  if (!etsyUserId) {
+    throw new Error(
+      "Connect your Etsy shop before loading export history.",
+    );
+  }
+
+  return etsyUserId;
+}
+
+export async function GET() {
   try {
     const etsyUserId =
-      getEtsyUserId(request);
-
-    if (!etsyUserId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Connect your Etsy shop before loading export history.",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
+      await getOwnedEtsyUserId();
 
     const {
       data: history,
@@ -162,6 +174,22 @@ export async function GET(
       exports,
     });
   } catch (error) {
+    if (
+      error instanceof
+      SubscriptionAccessError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -172,13 +200,20 @@ export async function GET(
       error,
     );
 
+    const status =
+      message.includes(
+        "Connect your Etsy shop",
+      )
+        ? 403
+        : 500;
+
     return NextResponse.json(
       {
         success: false,
         error: message,
       },
       {
-        status: 500,
+        status,
       },
     );
   }
@@ -192,6 +227,12 @@ export async function POST(
     | null = null;
 
   try {
+    /*
+     * Export status synchronization is a
+     * SellerOS Pro feature.
+     */
+    await requireProSubscription();
+
     const body =
       (await request.json()) as SyncExportHistoryRequest;
 
@@ -216,6 +257,12 @@ export async function POST(
       );
     }
 
+    /*
+     * createEtsyRepository now resolves the Etsy
+     * connection from the authenticated SellerOS
+     * user's user_id, so the browser Etsy cookie
+     * is not used as the ownership authority.
+     */
     const {
       repository,
       authSession:
@@ -398,6 +445,22 @@ export async function POST(
       authSession,
     );
   } catch (error) {
+    if (
+      error instanceof
+      SubscriptionAccessError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+
     const message =
       error instanceof Error
         ? error.message

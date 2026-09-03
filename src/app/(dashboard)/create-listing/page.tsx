@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   FilePlus2,
   ImageIcon,
@@ -9,6 +10,7 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  LockKeyhole,
 } from "lucide-react";
 
 import {
@@ -19,6 +21,7 @@ import {
   useState,
 } from "react";
 
+import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -209,6 +212,10 @@ async function loadSourceImageAsUpload(
 }
 
 export default function CreateListingPage() {
+  const {
+    hasProAccess,
+    isLoading: isSubscriptionLoading,
+  } = useSubscription();
   const [formData, setFormData] =
     useState<ListingFormData>(initialFormData);
 
@@ -245,6 +252,12 @@ export default function CreateListingPage() {
     ] = useState(false);
 
     useEffect(() => {
+      if (
+        isSubscriptionLoading ||
+        !hasProAccess
+      ) {
+        return;
+      }
       const urlProjectId =
         new URLSearchParams(
           window.location.search,
@@ -395,7 +408,10 @@ export default function CreateListingPage() {
       return () => {
         isCancelled = true;
       };
-    }, []);
+    }, [
+      hasProAccess,
+      isSubscriptionLoading,
+    ]);
 
   const canGenerate = useMemo(
     () =>
@@ -795,6 +811,121 @@ export default function CreateListingPage() {
     } finally {
       setIsGenerating(false);
     }
+  }
+
+  if (isSubscriptionLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-start gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <FilePlus2 className="size-5" />
+          </div>
+    
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Create Listing
+            </h1>
+    
+            <p className="mt-1 text-sm text-muted-foreground">
+              Build a complete Etsy listing from
+              your product photos and details.
+            </p>
+          </div>
+        </div>
+    
+        <Card>
+          <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+            <LoaderCircle className="size-4 animate-spin" />
+            Checking your SellerOS plan…
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
+  if (!hasProAccess) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-start gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <FilePlus2 className="size-5" />
+          </div>
+    
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Create Listing
+            </h1>
+    
+            <p className="mt-1 text-sm text-muted-foreground">
+              Build a complete Etsy listing from
+              your product photos and details.
+            </p>
+          </div>
+        </div>
+    
+        <Card className="border-primary/20">
+          <CardContent className="p-5 sm:p-6">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 items-start gap-4">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <LockKeyhole className="size-5" />
+                </div>
+    
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-lg font-semibold">
+                      Create Listing requires SellerOS Pro
+                    </h2>
+    
+                    <span className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-xs font-medium">
+                      <Sparkles className="size-3" />
+                      Pro
+                    </span>
+                  </div>
+    
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                    Upgrade to build complete Etsy listings
+                    with AI-generated titles, descriptions,
+                    tags, materials, image concepts, and
+                    product images.
+                  </p>
+    
+                  <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      AI listing package
+                    </div>
+    
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      Six-image generation plan
+                    </div>
+    
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      AI product images
+                    </div>
+    
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      Etsy draft export
+                    </div>
+                  </div>
+                </div>
+              </div>
+    
+              <Button
+                nativeButton={false}
+                size="lg"
+                className="w-full shrink-0 lg:w-auto"
+                render={
+                  <Link href="/subscription" />
+                }
+              >
+                <Sparkles className="size-4" />
+                Upgrade to Pro
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (

@@ -23,6 +23,7 @@ export type NavigationLinkItem = {
   name: string;
   href: string;
   icon: LucideIcon;
+  proOnly?: boolean;
 };
 
 export type NavigationGroupItem = {
@@ -59,30 +60,35 @@ export const navigationItems: NavigationItem[] = [
         name: "Create Listing",
         href: "/create-listing",
         icon: FilePlus2,
+        proOnly: true,
       },
       {
         type: "link",
         name: "Listing Projects",
         href: "/listing-projects",
         icon: FolderKanban,
+        proOnly: true,
       },
       {
         type: "link",
         name: "Export History",
         href: "/export-history",
         icon: FileClock,
+        proOnly: true,
       },
       {
         type: "link",
         name: "Update History",
         href: "/listing-update-history",
         icon: History,
+        proOnly: true,
       },
       {
         type: "link",
         name: "Optimization Results",
         href: "/optimization-results",
         icon: ChartNoAxesCombined,
+        proOnly: true,
       },
     ],
   },

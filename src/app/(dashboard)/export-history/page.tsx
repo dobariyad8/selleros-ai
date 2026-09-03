@@ -7,7 +7,9 @@ import {
   FileClock,
   ImageIcon,
   LoaderCircle,
+  LockKeyhole,
   RefreshCw,
+  Sparkles,
   Store,
   Trash2,
 } from "lucide-react";
@@ -16,6 +18,8 @@ import {
   useEffect,
   useState,
 } from "react";
+import Link from "next/link";
+import { useSubscription } from "@/hooks/useSubscription";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -169,6 +173,12 @@ function getEtsyListingUrl(
 }
 
 export default function ExportHistoryPage() {
+
+  const {
+    hasProAccess,
+    isLoading: isSubscriptionLoading,
+  } = useSubscription();
+
   const [exports, setExports] =
     useState<ExportHistoryItem[]>([]);
 
@@ -202,6 +212,18 @@ export default function ExportHistoryPage() {
 
   const loadExportHistory =
     useCallback(async () => {
+      if (isSubscriptionLoading) {
+        return;
+      }
+
+      if (!hasProAccess) {
+        setExports([]);
+        setIsLoading(false);
+        setError("");
+        setSyncSummary(null);
+        return;
+      }
+
       setIsLoading(true);
       setError("");
       setSyncSummary(null);
@@ -240,7 +262,10 @@ export default function ExportHistoryPage() {
       } finally {
         setIsLoading(false);
       }
-    }, []);
+    }, [
+      hasProAccess,
+      isSubscriptionLoading,
+    ]);
 
   async function retryCleanup(
     historyId: string,
@@ -490,6 +515,124 @@ export default function ExportHistoryPage() {
     syncingStatusId !== null ||
     isSyncingAll;
 
+  if (isSubscriptionLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-start gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <FileClock className="size-5" />
+          </div>
+    
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Etsy Export History
+            </h1>
+    
+            <p className="mt-1 text-sm text-muted-foreground">
+              Review exported listings and
+              synchronize their current Etsy
+              status.
+            </p>
+          </div>
+        </div>
+    
+        <Card>
+          <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+            <LoaderCircle className="size-4 animate-spin" />
+            Checking your SellerOS plan…
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
+  if (!hasProAccess) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-start gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <FileClock className="size-5" />
+          </div>
+    
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Etsy Export History
+            </h1>
+    
+            <p className="mt-1 text-sm text-muted-foreground">
+              Review exported listings and
+              synchronize their current Etsy
+              status.
+            </p>
+          </div>
+        </div>
+    
+        <Card className="border-primary/20">
+          <CardContent className="p-5 sm:p-6">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 items-start gap-4">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <LockKeyhole className="size-5" />
+                </div>
+    
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-lg font-semibold">
+                      Etsy Export History requires SellerOS Pro
+                    </h2>
+    
+                    <span className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-xs font-medium">
+                      <Sparkles className="size-3" />
+                      Pro
+                    </span>
+                  </div>
+    
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                    Upgrade to export SellerOS
+                    listings to Etsy, review export
+                    records, synchronize Etsy
+                    listing status, and retry project
+                    cleanup when needed.
+                  </p>
+    
+                  <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      Etsy draft export history
+                    </div>
+    
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      Listing status synchronization
+                    </div>
+    
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      Exported image tracking
+                    </div>
+    
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      Project cleanup recovery
+                    </div>
+                  </div>
+                </div>
+              </div>
+    
+              <Button
+                nativeButton={false}
+                size="lg"
+                className="w-full shrink-0 lg:w-auto"
+                render={
+                  <Link href="/subscription" />
+                }
+              >
+                <Sparkles className="size-4" />
+                Upgrade to Pro
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

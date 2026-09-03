@@ -13,6 +13,7 @@ import {
   Clock3,
   ExternalLink,
   LoaderCircle,
+  LockKeyhole,
   RefreshCw,
   Sparkles,
 } from "lucide-react";
@@ -24,6 +25,7 @@ import {
 } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useSubscription } from "@/hooks/useSubscription";
 import {
   Card,
   CardContent,
@@ -275,6 +277,12 @@ function formatMoney(
 }
 
 export default function OptimizationResultsPage() {
+
+  const {
+    hasProAccess,
+    isLoading: isSubscriptionLoading,
+  } = useSubscription();
+
   const [results, setResults] =
     useState<OptimizationResult[]>([]);
 
@@ -301,6 +309,18 @@ export default function OptimizationResultsPage() {
 
   const loadResults =
     useCallback(async () => {
+      if (isSubscriptionLoading) {
+        return;
+      }
+
+      if (!hasProAccess) {
+        setResults([]);
+        setSummary(null);
+        setIsLoading(false);
+        setError("");
+        return;
+      }
+
       setIsLoading(true);
       setError("");
 
@@ -342,7 +362,10 @@ export default function OptimizationResultsPage() {
       } finally {
         setIsLoading(false);
       }
-    }, []);
+    }, [
+      hasProAccess,
+      isSubscriptionLoading,
+    ]);
 
   async function captureSnapshotNow(
     result: OptimizationResult,
@@ -424,6 +447,37 @@ export default function OptimizationResultsPage() {
   const isActionRunning =
     isLoading ||
     capturingSnapshotId !== null;
+
+    if (isSubscriptionLoading) {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-start gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <BarChart3 className="size-5" />
+            </div>
+      
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">
+                Optimization Results
+              </h1>
+      
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                Measure favorites, orders, units
+                sold, and item revenue after
+                SellerOS listing updates.
+              </p>
+            </div>
+          </div>
+      
+          <Card>
+            <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+              <LoaderCircle className="size-4 animate-spin" />
+              Checking your SellerOS plan…
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
 
   return (
     <div className="space-y-6">

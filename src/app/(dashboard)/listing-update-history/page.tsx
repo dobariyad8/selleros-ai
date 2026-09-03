@@ -6,8 +6,10 @@ import {
   ExternalLink,
   History,
   LoaderCircle,
+  LockKeyhole,
   RefreshCw,
   RotateCcw,
+  Sparkles,
   Store,
 } from "lucide-react";
 import {
@@ -15,6 +17,8 @@ import {
   useEffect,
   useState,
 } from "react";
+import Link from "next/link";
+import { useSubscription } from "@/hooks/useSubscription";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -239,6 +243,12 @@ function TagsComparison({
 }
 
 export default function ListingUpdateHistoryPage() {
+
+  const {
+    hasProAccess,
+    isLoading: isSubscriptionLoading,
+  } = useSubscription();
+
   const [updates, setUpdates] =
     useState<ListingUpdateHistoryItem[]>(
       [],
@@ -282,6 +292,17 @@ const [
 
   const loadUpdateHistory =
     useCallback(async () => {
+      if (isSubscriptionLoading) {
+        return;
+      }
+
+      if (!hasProAccess) {
+        setUpdates([]);
+        setIsLoading(false);
+        setError("");
+        return;
+      }
+
       setIsLoading(true);
       setError("");
 
@@ -319,7 +340,10 @@ const [
       } finally {
         setIsLoading(false);
       }
-    }, []);
+    }, [
+      hasProAccess,
+      isSubscriptionLoading,
+    ]);
 
     function openRestoreConfirmation(
   update: ListingUpdateHistoryItem,
@@ -506,6 +530,121 @@ async function restorePreviousValues(
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadUpdateHistory();
   }, [loadUpdateHistory]);
+
+  if (isSubscriptionLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-start gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <History className="size-5" />
+          </div>
+    
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Etsy Listing Update History
+            </h1>
+    
+            <p className="mt-1 text-sm text-muted-foreground">
+              Review manual listing changes
+              sent from SellerOS to Etsy.
+            </p>
+          </div>
+        </div>
+    
+        <Card>
+          <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+            <LoaderCircle className="size-4 animate-spin" />
+            Checking your SellerOS plan…
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
+  if (!hasProAccess) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-start gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <History className="size-5" />
+          </div>
+    
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Etsy Listing Update History
+            </h1>
+    
+            <p className="mt-1 text-sm text-muted-foreground">
+              Review manual listing changes
+              sent from SellerOS to Etsy.
+            </p>
+          </div>
+        </div>
+    
+        <Card className="border-primary/20">
+          <CardContent className="p-5 sm:p-6">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 items-start gap-4">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <LockKeyhole className="size-5" />
+                </div>
+    
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-lg font-semibold">
+                      Listing Update History requires SellerOS Pro
+                    </h2>
+    
+                    <span className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-xs font-medium">
+                      <Sparkles className="size-3" />
+                      Pro
+                    </span>
+                  </div>
+    
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                    Upgrade to review changes sent
+                    from SellerOS to Etsy and restore
+                    previous title, description, or
+                    tag values when needed.
+                  </p>
+    
+                  <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      Etsy update history
+                    </div>
+    
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      Previous vs. new values
+                    </div>
+    
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      Restore previous content
+                    </div>
+    
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      Optimization tracking baseline
+                    </div>
+                  </div>
+                </div>
+              </div>
+    
+              <Button
+                nativeButton={false}
+                size="lg"
+                className="w-full shrink-0 lg:w-auto"
+                render={
+                  <Link href="/subscription" />
+                }
+              >
+                <Sparkles className="size-4" />
+                Upgrade to Pro
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -4,6 +4,11 @@ import {
 } from "next/server";
 
 import {
+  requireProSubscription,
+  SubscriptionAccessError,
+} from "@/lib/billing/requireProSubscription";
+
+import {
   applyEtsyAuthCookies,
   type EtsyAuthSession,
 } from "@/lib/etsy/auth";
@@ -54,6 +59,8 @@ export async function POST(
     | null = null;
 
   try {
+    await requireProSubscription();
+
     const {
       repository,
       authSession:
@@ -304,6 +311,22 @@ export async function POST(
       authSession,
     );
   } catch (error) {
+    if (
+      error instanceof
+      SubscriptionAccessError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+  
     const message =
       error instanceof Error
         ? error.message

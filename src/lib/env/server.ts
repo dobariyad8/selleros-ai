@@ -1,6 +1,7 @@
 import "server-only";
 
 type RequiredEnvironmentVariable =
+  | "APP_URL"
   | "ETSY_API_KEY"
   | "ETSY_SHARED_SECRET"
   | "ETSY_REDIRECT_URI"
@@ -36,6 +37,12 @@ export const serverEnv = {
   get etsySharedSecret() {
     return getRequiredEnvironmentVariable(
       "ETSY_SHARED_SECRET",
+    );
+  },
+
+  get appUrl() {
+    return getRequiredEnvironmentVariable(
+      "APP_URL",
     );
   },
 

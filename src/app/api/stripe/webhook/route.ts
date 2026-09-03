@@ -1,4 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
 import type Stripe from "stripe";
 
 import { serverEnv } from "@/lib/env/server";
@@ -18,7 +21,10 @@ function unixToIso(
 }
 
 function getCustomerId(
-  customer: string | Stripe.Customer | Stripe.DeletedCustomer,
+  customer:
+    | string
+    | Stripe.Customer
+    | Stripe.DeletedCustomer,
 ) {
   return typeof customer === "string"
     ? customer
@@ -33,34 +39,158 @@ function getSubscriptionPeriod(
 
   return {
     currentPeriodStart:
-      firstItem?.current_period_start ?? null,
+      firstItem?.current_period_start ??
+      null,
 
     currentPeriodEnd:
-      firstItem?.current_period_end ?? null,
+      firstItem?.current_period_end ??
+      null,
   };
 }
 
-async function saveSubscription(
+function getSellerOsUserId(
   subscription: Stripe.Subscription,
   fallbackUserId?: string | null,
 ) {
+  return (
+    subscription.metadata
+      .selleros_user_id?.trim() ||
+    fallbackUserId?.trim() ||
+    null
+  );
+}
+
+function getSubscriptionPriceId(
+  subscription: Stripe.Subscription,
+) {
+  return (
+    subscription.items.data[0]
+      ?.price.id ?? null
+  );
+}
+
+async function saveSubscription({
+  subscription,
+  eventId,
+  eventCreated,
+  fallbackUserId,
+}: {
+  subscription: Stripe.Subscription;
+  eventId: string;
+  eventCreated: number;
+  fallbackUserId?: string | null;
+}) {
   const sellerosUserId =
-    subscription.metadata.selleros_user_id?.trim() ||
-    fallbackUserId?.trim();
+    getSellerOsUserId(
+      subscription,
+      fallbackUserId,
+    );
 
   if (!sellerosUserId) {
-    throw new Error(
-      `Stripe subscription ${subscription.id} does not contain a SellerOS user ID.`,
+    /*
+     * This subscription does not belong to a
+     * SellerOS account. Ignore it rather than
+     * causing Stripe to retry an unrelated
+     * subscription event.
+     */
+    console.warn(
+      `Ignoring Stripe subscription ${subscription.id} because it does not contain a SellerOS user ID.`,
     );
+
+    return;
   }
 
   const priceId =
-    subscription.items.data[0]?.price.id ?? null;
+    getSubscriptionPriceId(
+      subscription,
+    );
+
+  if (
+    priceId !==
+    serverEnv.stripeProPriceId
+  ) {
+    throw new Error(
+      `Stripe subscription ${subscription.id} uses an unsupported SellerOS price.`,
+    );
+  }
+
+  /*
+   * Check whether this exact event has already
+   * been applied or whether a newer Stripe event
+   * already produced the stored state.
+   */
+  const {
+    data: existingData,
+    error: existingError,
+  } = await supabaseAdmin
+    .from(
+      "selleros_subscriptions",
+    )
+    .select(
+      `
+        last_stripe_event_created,
+        last_stripe_event_id
+      `,
+    )
+    .eq(
+      "user_id",
+      sellerosUserId,
+    )
+    .maybeSingle();
+
+  if (existingError) {
+    console.error(
+      "Existing Stripe event lookup failed:",
+      existingError,
+    );
+
+    throw new Error(
+      "SellerOS could not verify the current Stripe subscription state.",
+    );
+  }
+
+  const existingEventId =
+    existingData
+      ?.last_stripe_event_id ??
+    null;
+
+  const existingEventCreated =
+    typeof existingData
+      ?.last_stripe_event_created ===
+    "number"
+      ? existingData
+          .last_stripe_event_created
+      : null;
+
+  if (
+    existingEventId === eventId
+  ) {
+    /*
+     * Stripe can deliver the same event more
+     * than once. The event has already been
+     * persisted successfully.
+     */
+    return;
+  }
+
+  if (
+    existingEventCreated !== null &&
+    existingEventCreated >
+      eventCreated
+  ) {
+    /*
+     * A newer Stripe event already produced
+     * the stored subscription state.
+     */
+    return;
+  }
 
   const {
     currentPeriodStart,
     currentPeriodEnd,
-  } = getSubscriptionPeriod(subscription);
+  } = getSubscriptionPeriod(
+    subscription,
+  );
 
   const now =
     new Date().toISOString();
@@ -68,10 +198,13 @@ async function saveSubscription(
   const {
     error,
   } = await supabaseAdmin
-    .from("selleros_subscriptions")
+    .from(
+      "selleros_subscriptions",
+    )
     .upsert(
       {
-        user_id: sellerosUserId,
+        user_id:
+          sellerosUserId,
 
         stripe_customer_id:
           getCustomerId(
@@ -84,22 +217,31 @@ async function saveSubscription(
         stripe_price_id:
           priceId,
 
-        plan_key:
-          subscription.metadata
-            .selleros_plan_key?.trim() ||
-          "pro",
+        /*
+         * Pro access is derived from the
+         * trusted Stripe price configured
+         * on the SellerOS server, rather
+         * than trusting Stripe metadata
+         * to determine entitlement.
+         */
+        plan_key: "pro",
 
         subscription_status:
           subscription.status,
 
         current_period_start:
-          unixToIso(currentPeriodStart),
+          unixToIso(
+            currentPeriodStart,
+          ),
 
         current_period_end:
-          unixToIso(currentPeriodEnd),
+          unixToIso(
+            currentPeriodEnd,
+          ),
 
         cancel_at_period_end:
-          subscription.cancel_at_period_end,
+          subscription
+            .cancel_at_period_end,
 
         cancel_at:
           unixToIso(
@@ -111,10 +253,18 @@ async function saveSubscription(
             subscription.canceled_at,
           ),
 
-        updated_at: now,
+        last_stripe_event_created:
+          eventCreated,
+
+        last_stripe_event_id:
+          eventId,
+
+        updated_at:
+          now,
       },
       {
-        onConflict: "user_id",
+        onConflict:
+          "user_id",
       },
     );
 
@@ -130,32 +280,78 @@ async function saveSubscription(
   }
 }
 
+async function loadCurrentSubscription(
+  subscriptionId: string,
+) {
+  /*
+   * Webhook delivery order is not guaranteed.
+   * Always retrieve the current Subscription
+   * from Stripe rather than trusting an older
+   * webhook payload as the latest state.
+   */
+  return stripe.subscriptions.retrieve(
+    subscriptionId,
+  );
+}
+
 async function handleCheckoutCompleted(
   session: Stripe.Checkout.Session,
+  event: Stripe.Event,
 ) {
   if (
-    session.mode !== "subscription" ||
+    session.mode !==
+      "subscription" ||
     !session.subscription
   ) {
     return;
   }
 
   const subscriptionId =
-    typeof session.subscription === "string"
+    typeof session.subscription ===
+    "string"
       ? session.subscription
       : session.subscription.id;
 
   const subscription =
-    await stripe.subscriptions.retrieve(
+    await loadCurrentSubscription(
       subscriptionId,
     );
 
-  await saveSubscription(
+  await saveSubscription({
     subscription,
-    session.client_reference_id ??
-      session.metadata?.selleros_user_id ??
+    eventId: event.id,
+    eventCreated:
+      event.created,
+    fallbackUserId:
+      session.client_reference_id ??
+      session.metadata
+        ?.selleros_user_id ??
       null,
-  );
+  });
+}
+
+async function handleSubscriptionEvent(
+  webhookSubscription:
+    Stripe.Subscription,
+  event: Stripe.Event,
+) {
+  /*
+   * Fetch Stripe's current version of the
+   * Subscription. This prevents a late
+   * webhook payload from rolling SellerOS
+   * back to stale subscription data.
+   */
+  const subscription =
+    await loadCurrentSubscription(
+      webhookSubscription.id,
+    );
+
+  await saveSubscription({
+    subscription,
+    eventId: event.id,
+    eventCreated:
+      event.created,
+  });
 }
 
 export async function POST(
@@ -182,6 +378,10 @@ export async function POST(
   let event: Stripe.Event;
 
   try {
+    /*
+     * Stripe webhook signature verification
+     * requires the original raw request body.
+     */
     const rawBody =
       await request.text();
 
@@ -189,7 +389,8 @@ export async function POST(
       stripe.webhooks.constructEvent(
         rawBody,
         signature,
-        serverEnv.stripeWebhookSecret,
+        serverEnv
+          .stripeWebhookSecret,
       );
   } catch (error) {
     console.error(
@@ -214,16 +415,20 @@ export async function POST(
       case "checkout.session.completed": {
         await handleCheckoutCompleted(
           event.data.object,
+          event,
         );
+
         break;
       }
 
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
-        await saveSubscription(
+        await handleSubscriptionEvent(
           event.data.object,
+          event,
         );
+
         break;
       }
 

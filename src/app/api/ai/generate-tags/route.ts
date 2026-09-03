@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 
 import { generateTags } from "@/lib/ai/generateTags";
 
+import {
+  requireProSubscription,
+  SubscriptionAccessError,
+} from "@/lib/billing/requireProSubscription";
+
 type GenerateTagsRequest = {
   title?: unknown;
   description?: unknown;
@@ -10,6 +15,8 @@ type GenerateTagsRequest = {
 
 export async function POST(request: Request) {
   try {
+    await requireProSubscription();
+
     const body =
       (await request.json()) as GenerateTagsRequest;
 
@@ -82,11 +89,24 @@ export async function POST(request: Request) {
       suggestedTags,
     });
   } catch (error) {
+    if (error instanceof SubscriptionAccessError) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+  
     const message =
       error instanceof Error
         ? error.message
         : "The tags could not be generated.";
-
+  
     console.error("Tag generation failed:", error);
 
     return NextResponse.json(

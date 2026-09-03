@@ -1,34 +1,50 @@
-import {
-  NextRequest,
-  NextResponse,
-} from "next/server";
+import { NextResponse } from "next/server";
 
 import { getImageUsage } from "@/lib/ai/imageUsage";
+import {
+  requireProSubscription,
+  SubscriptionAccessError,
+} from "@/lib/billing/requireProSubscription";
+import { supabaseAdmin } from "@/lib/supabase/server";
 
-function getEtsyUserId(
-  request: NextRequest,
-) {
-  const accessToken =
-    request.cookies.get(
-      "etsy_access_token",
-    )?.value;
-
-  if (!accessToken) {
-    return null;
-  }
-
-  const userId =
-    accessToken.split(".")[0]?.trim();
-
-  return userId || null;
-}
-
-export async function GET(
-  request: NextRequest,
-) {
+export async function GET() {
   try {
+    const { user } =
+      await requireProSubscription();
+
+    const {
+      data: connection,
+      error: connectionError,
+    } = await supabaseAdmin
+      .from("etsy_connections")
+      .select("etsy_user_id")
+      .eq("user_id", user.id)
+      .eq("connection_status", "active")
+      .maybeSingle();
+
+    if (connectionError) {
+      console.error(
+        "Etsy connection lookup failed:",
+        connectionError,
+      );
+
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "SellerOS could not load your Etsy connection.",
+        },
+        {
+          status: 500,
+        },
+      );
+    }
+
     const etsyUserId =
-      getEtsyUserId(request);
+      typeof connection?.etsy_user_id ===
+      "string"
+        ? connection.etsy_user_id.trim()
+        : "";
 
     if (!etsyUserId) {
       return NextResponse.json(
@@ -38,7 +54,7 @@ export async function GET(
             "Connect your Etsy shop to view image credits.",
         },
         {
-          status: 401,
+          status: 403,
         },
       );
     }
@@ -51,13 +67,28 @@ export async function GET(
       usage: {
         used: usage.used,
         limit: usage.limit,
-        remaining:
-          usage.remaining,
+        remaining: usage.remaining,
         billingMonth:
           usage.billingMonth,
       },
     });
   } catch (error) {
+    if (
+      error instanceof
+      SubscriptionAccessError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+
     const message =
       error instanceof Error
         ? error.message

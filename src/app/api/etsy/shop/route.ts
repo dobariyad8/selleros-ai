@@ -1,5 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
+
+import {
+  applyEtsyAuthCookies,
+  type EtsyAuthSession,
+} from "@/lib/etsy/auth";
+import {
+  createEtsyRepository,
+} from "@/lib/etsy/createRepository";
 import { serverEnv } from "@/lib/env/server";
+
+export const runtime = "nodejs";
+
+const ETSY_API_BASE_URL =
+  "https://api.etsy.com/v3/application";
 
 type EtsyShop = {
   shop_id: number;
@@ -14,86 +30,166 @@ type EtsyShop = {
   icon_url_fullxfull?: string | null;
 };
 
-export async function GET(request: NextRequest) {
-  const apiKey = serverEnv.etsyApiKey;
-  const sharedSecret = serverEnv.etsySharedSecret;
-  const accessToken = request.cookies.get("etsy_access_token")?.value;
+type EtsyShopErrorResponse = {
+  error?: string;
+};
 
-  if (!apiKey || !sharedSecret) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Etsy API credentials are missing.",
-      },
-      { status: 500 }
-    );
-  }
-
-  if (!accessToken) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Etsy shop is not connected.",
-      },
-      { status: 401 }
-    );
-  }
-
-  const userId = accessToken.split(".")[0];
-
-  if (!userId) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Could not determine the Etsy user ID.",
-      },
-      { status: 400 }
-    );
-  }
+export async function GET(
+  request: NextRequest,
+) {
+  let authSession:
+    | EtsyAuthSession
+    | null = null;
 
   try {
+    const {
+      authSession:
+        repositoryAuthSession,
+    } =
+      await createEtsyRepository(
+        request,
+      );
+
+    authSession =
+      repositoryAuthSession;
+
+    const apiKey =
+      serverEnv.etsyApiKey;
+
+    const sharedSecret =
+      serverEnv.etsySharedSecret;
+
+    const userId =
+      authSession.userId;
+
+    const accessToken =
+      authSession.accessToken;
+
     const response = await fetch(
-      `https://openapi.etsy.com/v3/application/users/${userId}/shops`,
+      `${ETSY_API_BASE_URL}/users/${encodeURIComponent(
+        userId,
+      )}/shops`,
       {
         headers: {
-          "x-api-key": `${apiKey}:${sharedSecret}`,
-          Authorization: `Bearer ${accessToken}`,
+          "x-api-key":
+            `${apiKey}:${sharedSecret}`,
+          Authorization:
+            `Bearer ${accessToken}`,
         },
         cache: "no-store",
-      }
+      },
     );
 
-    const data = (await response.json()) as EtsyShop | {
-      error?: string;
-    };
+    const data =
+      (await response.json()) as
+        | EtsyShop
+        | EtsyShopErrorResponse;
 
     if (!response.ok) {
-      return NextResponse.json(
-        {
-          success: false,
-          status: response.status,
-          error:
-            "error" in data
-              ? data.error
-              : "Could not retrieve the Etsy shop.",
-        },
-        { status: response.status }
+      const errorMessage =
+        "error" in data &&
+        typeof data.error ===
+          "string"
+          ? data.error
+          : "Could not retrieve the Etsy shop.";
+
+      const errorResponse =
+        NextResponse.json(
+          {
+            success: false,
+            status:
+              response.status,
+            error:
+              errorMessage,
+          },
+          {
+            status:
+              response.status,
+          },
+        );
+
+      return applyEtsyAuthCookies(
+        errorResponse,
+        authSession,
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      shop: data,
-    });
-  } catch (error) {
-    console.error("Etsy shop request failed:", error);
+    const shop =
+      data as EtsyShop;
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Could not connect to Etsy.",
-      },
-      { status: 500 }
+    if (!shop.shop_id) {
+      const invalidShopResponse =
+        NextResponse.json(
+          {
+            success: false,
+            error:
+              "Could not retrieve the connected Etsy shop.",
+          },
+          {
+            status: 502,
+          },
+        );
+
+      return applyEtsyAuthCookies(
+        invalidShopResponse,
+        authSession,
+      );
+    }
+
+    const successResponse =
+      NextResponse.json({
+        success: true,
+        shop,
+      });
+
+    return applyEtsyAuthCookies(
+      successResponse,
+      authSession,
     );
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Could not connect to Etsy.";
+
+    console.error(
+      "Etsy shop request failed:",
+      error,
+    );
+
+    const status =
+      message.includes(
+        "Log in to SellerOS",
+      )
+        ? 401
+        : message.includes(
+              "Connect your Etsy shop",
+            ) ||
+            message.includes(
+              "connection is not active",
+            ) ||
+            message.includes(
+              "Reconnect your Etsy shop",
+            )
+          ? 401
+          : 500;
+
+    const response =
+      NextResponse.json(
+        {
+          success: false,
+          error: message,
+        },
+        {
+          status,
+        },
+      );
+
+    return authSession
+      ? applyEtsyAuthCookies(
+          response,
+          authSession,
+        )
+      : response;
   }
 }

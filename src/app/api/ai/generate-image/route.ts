@@ -1,18 +1,20 @@
-import {
-  NextRequest,
-  NextResponse,
-} from "next/server";
+import { NextResponse } from "next/server";
 
+import {
+  generateEtsyImage,
+  type GenerateEtsyImageInput,
+} from "@/lib/ai/generateEtsyImage";
 import {
   consumeImageCredit,
   refundImageCredit,
   type ImageUsageResult,
 } from "@/lib/ai/imageUsage";
-import {
-  generateEtsyImage,
-  type GenerateEtsyImageInput,
-} from "@/lib/ai/generateEtsyImage";
 import type { EtsyImageStyle } from "@/lib/ai/prompts";
+import {
+  requireProSubscription,
+  SubscriptionAccessError,
+} from "@/lib/billing/requireProSubscription";
+import { supabaseAdmin } from "@/lib/supabase/server";
 
 type GenerateImageRequest = {
   listing?: unknown;
@@ -69,24 +71,6 @@ function isValidListing(
   );
 }
 
-function getEtsyUserId(
-  request: NextRequest,
-) {
-  const accessToken =
-    request.cookies.get(
-      "etsy_access_token",
-    )?.value;
-
-  if (!accessToken) {
-    return null;
-  }
-
-  const userId =
-    accessToken.split(".")[0]?.trim();
-
-  return userId || null;
-}
-
 function formatUsage(
   usage: ImageUsageResult,
 ) {
@@ -99,7 +83,7 @@ function formatUsage(
 }
 
 export async function POST(
-  request: NextRequest,
+  request: Request,
 ) {
   let etsyUserId: string | null = null;
 
@@ -108,6 +92,56 @@ export async function POST(
     | null = null;
 
   try {
+    const { user } =
+      await requireProSubscription();
+
+    const {
+      data: connection,
+      error: connectionError,
+    } = await supabaseAdmin
+      .from("etsy_connections")
+      .select("etsy_user_id")
+      .eq("user_id", user.id)
+      .eq("connection_status", "active")
+      .maybeSingle();
+
+    if (connectionError) {
+      console.error(
+        "Etsy connection lookup failed:",
+        connectionError,
+      );
+
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "SellerOS could not load your Etsy connection.",
+        },
+        {
+          status: 500,
+        },
+      );
+    }
+
+    etsyUserId =
+      typeof connection?.etsy_user_id ===
+      "string"
+        ? connection.etsy_user_id.trim()
+        : "";
+
+    if (!etsyUserId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Connect your Etsy shop before generating images.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
     const body =
       (await request.json()) as GenerateImageRequest;
 
@@ -170,22 +204,6 @@ export async function POST(
       );
     }
 
-    etsyUserId =
-      getEtsyUserId(request);
-
-    if (!etsyUserId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Connect your Etsy shop before generating images.",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
-
     consumedUsage =
       await consumeImageCredit(
         etsyUserId,
@@ -224,6 +242,22 @@ export async function POST(
         formatUsage(consumedUsage),
     });
   } catch (error) {
+    if (
+      error instanceof
+      SubscriptionAccessError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+
     const message =
       error instanceof Error
         ? error.message

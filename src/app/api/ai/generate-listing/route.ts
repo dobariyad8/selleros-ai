@@ -12,6 +12,12 @@ import {
   updateGeneratedListing,
 } from "@/lib/listing-projects/listingProjects";
 
+import {
+  requireProSubscription,
+  SubscriptionAccessError,
+} from "@/lib/billing/requireProSubscription";
+import { supabaseAdmin } from "@/lib/supabase/server";
+
 type GenerateListingRequest = {
   projectId?: unknown;
   productName?: unknown;
@@ -105,23 +111,6 @@ function validateRequest(
   };
 }
 
-function getEtsyUserId(
-  request: NextRequest,
-) {
-  const accessToken =
-    request.cookies.get(
-      "etsy_access_token",
-    )?.value;
-
-  if (!accessToken) {
-    return null;
-  }
-
-  const userId =
-    accessToken.split(".")[0]?.trim();
-
-  return userId || null;
-}
 
 function isValidUuid(
   value: string,
@@ -135,8 +124,41 @@ export async function POST(
   request: NextRequest,
 ) {
   try {
+    const { user } =
+      await requireProSubscription();
+
+    const {
+      data: connection,
+      error: connectionError,
+    } = await supabaseAdmin
+      .from("etsy_connections")
+      .select("etsy_user_id")
+      .eq("user_id", user.id)
+      .eq("connection_status", "active")
+      .maybeSingle();
+
+    if (connectionError) {
+      console.error(
+        "Etsy connection lookup failed:",
+        connectionError,
+      );
+
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "SellerOS could not load your Etsy connection.",
+        },
+        {
+          status: 500,
+        },
+      );
+    }
+
     const etsyUserId =
-      getEtsyUserId(request);
+      typeof connection?.etsy_user_id === "string"
+        ? connection.etsy_user_id.trim()
+        : "";
 
     if (!etsyUserId) {
       return NextResponse.json(
@@ -146,7 +168,7 @@ export async function POST(
             "Connect your Etsy shop before generating a listing.",
         },
         {
-          status: 401,
+          status: 403,
         },
       );
     }
@@ -241,6 +263,19 @@ export async function POST(
       listingPackage,
     });
   } catch (error) {
+
+    if (error instanceof SubscriptionAccessError) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
     const message =
       error instanceof Error
         ? error.message

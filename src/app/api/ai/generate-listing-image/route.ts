@@ -1,17 +1,19 @@
-import {
-  NextRequest,
-  NextResponse,
-} from "next/server";
+import { NextResponse } from "next/server";
 
+import {
+  generateListingImage,
+  type ListingImageType,
+} from "@/lib/ai/generateListingImage";
 import {
   consumeImageCredit,
   refundImageCredit,
   type ImageUsageResult,
 } from "@/lib/ai/imageUsage";
 import {
-  generateListingImage,
-  type ListingImageType,
-} from "@/lib/ai/generateListingImage";
+  requireProSubscription,
+  SubscriptionAccessError,
+} from "@/lib/billing/requireProSubscription";
+import { supabaseAdmin } from "@/lib/supabase/server";
 
 const validImageTypes =
   new Set<ListingImageType>([
@@ -34,24 +36,6 @@ function readFormText(
     : "";
 }
 
-function getEtsyUserId(
-  request: NextRequest,
-) {
-  const accessToken =
-    request.cookies.get(
-      "etsy_access_token",
-    )?.value;
-
-  if (!accessToken) {
-    return null;
-  }
-
-  const userId =
-    accessToken.split(".")[0]?.trim();
-
-  return userId || null;
-}
-
 function formatUsage(
   usage: ImageUsageResult,
 ) {
@@ -64,7 +48,7 @@ function formatUsage(
 }
 
 export async function POST(
-  request: NextRequest,
+  request: Request,
 ) {
   let etsyUserId: string | null = null;
 
@@ -73,7 +57,42 @@ export async function POST(
     | null = null;
 
   try {
-    etsyUserId = getEtsyUserId(request);
+    const { user } =
+      await requireProSubscription();
+
+    const {
+      data: connection,
+      error: connectionError,
+    } = await supabaseAdmin
+      .from("etsy_connections")
+      .select("etsy_user_id")
+      .eq("user_id", user.id)
+      .eq("connection_status", "active")
+      .maybeSingle();
+
+    if (connectionError) {
+      console.error(
+        "Etsy connection lookup failed:",
+        connectionError,
+      );
+
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "SellerOS could not load your Etsy connection.",
+        },
+        {
+          status: 500,
+        },
+      );
+    }
+
+    etsyUserId =
+      typeof connection?.etsy_user_id ===
+      "string"
+        ? connection.etsy_user_id.trim()
+        : "";
 
     if (!etsyUserId) {
       return NextResponse.json(
@@ -83,7 +102,7 @@ export async function POST(
             "Connect your Etsy shop before generating listing images.",
         },
         {
-          status: 401,
+          status: 403,
         },
       );
     }
@@ -229,6 +248,22 @@ export async function POST(
         formatUsage(consumedUsage),
     });
   } catch (error) {
+    if (
+      error instanceof
+      SubscriptionAccessError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+
     const message =
       error instanceof Error
         ? error.message

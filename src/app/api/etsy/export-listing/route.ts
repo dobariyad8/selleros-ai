@@ -21,6 +21,11 @@ import {
   deleteListingProject,
 } from "@/lib/listing-projects/deleteListingProject";
 
+import {
+  requireProSubscription,
+  SubscriptionAccessError,
+} from "@/lib/billing/requireProSubscription";
+
 import type {
   EtsyRepository,
 } from "@/lib/etsy/repository";
@@ -251,6 +256,8 @@ export async function POST(
       | null = null;
 
   try {
+    await requireProSubscription();
+
     const body =
       (await request.json()) as ExportListingRequest;
 
@@ -892,6 +899,22 @@ export async function POST(
       authSession,
     );
   } catch (error) {
+      if (
+        error instanceof
+        SubscriptionAccessError
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: error.code,
+            error: error.message,
+          },
+          {
+            status: error.status,
+          },
+        );
+      }
+    
       console.error(
         "Etsy listing export failed:",
         {

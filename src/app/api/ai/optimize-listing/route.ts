@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 
 import { optimizeListing } from "@/lib/ai/optimizeListing";
 
+import {
+  requireProSubscription,
+  SubscriptionAccessError,
+} from "@/lib/billing/requireProSubscription";
+
 type OptimizeListingRequest = {
   title?: unknown;
   description?: unknown;
@@ -10,6 +15,7 @@ type OptimizeListingRequest = {
 
 export async function POST(request: Request) {
   try {
+    await requireProSubscription();
     const body =
       (await request.json()) as OptimizeListingRequest;
 
@@ -82,16 +88,29 @@ export async function POST(request: Request) {
       optimizedListing,
     });
   } catch (error) {
+    if (error instanceof SubscriptionAccessError) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+  
     const message =
       error instanceof Error
         ? error.message
         : "The listing could not be optimized.";
-
+  
     console.error(
       "Complete listing optimization failed:",
       error,
     );
-
+  
     return NextResponse.json(
       {
         success: false,

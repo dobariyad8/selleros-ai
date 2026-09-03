@@ -1,53 +1,64 @@
 import {
-  NextRequest,
   NextResponse,
 } from "next/server";
 
+import {
+  requireProSubscription,
+  SubscriptionAccessError,
+} from "@/lib/billing/requireProSubscription";
 import {
   supabaseAdmin,
 } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-function getEtsyUserId(
-  request: NextRequest,
-) {
-  const accessToken =
-    request.cookies.get(
-      "etsy_access_token",
-    )?.value;
+async function getOwnedEtsyUserId() {
+  const { user } =
+    await requireProSubscription();
 
-  if (!accessToken) {
-    return null;
+  const {
+    data: connection,
+    error: connectionError,
+  } = await supabaseAdmin
+    .from("etsy_connections")
+    .select("etsy_user_id")
+    .eq("user_id", user.id)
+    .eq(
+      "connection_status",
+      "active",
+    )
+    .maybeSingle();
+
+  if (connectionError) {
+    console.error(
+      "Listing update history Etsy connection lookup failed:",
+      connectionError,
+    );
+
+    throw new Error(
+      "SellerOS could not load your Etsy connection.",
+    );
   }
 
-  const userId =
-    accessToken
-      .split(".")[0]
-      ?.trim();
+  const etsyUserId =
+    typeof connection?.etsy_user_id ===
+    "string"
+      ? connection.etsy_user_id.trim()
+      : "";
 
-  return userId || null;
+  if (!etsyUserId) {
+    throw new Error(
+      "Connect your Etsy shop before loading listing update history.",
+    );
+  }
+
+  return etsyUserId;
 }
 
-export async function GET(
-  request: NextRequest,
-) {
+export async function GET() {
   try {
     const etsyUserId =
-      getEtsyUserId(request);
-
-    if (!etsyUserId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Connect your Etsy shop before loading listing update history.",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
+      await getOwnedEtsyUserId();
 
     const {
       data: history,
@@ -160,6 +171,22 @@ export async function GET(
       updates,
     });
   } catch (error) {
+    if (
+      error instanceof
+      SubscriptionAccessError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+
     const message =
       error instanceof Error
         ? error.message
@@ -170,13 +197,20 @@ export async function GET(
       error,
     );
 
+    const status =
+      message.includes(
+        "Connect your Etsy shop",
+      )
+        ? 403
+        : 500;
+
     return NextResponse.json(
       {
         success: false,
         error: message,
       },
       {
-        status: 500,
+        status,
       },
     );
   }

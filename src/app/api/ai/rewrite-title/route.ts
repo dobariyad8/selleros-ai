@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 
+import {
+  requireProSubscription,
+  SubscriptionAccessError,
+} from "@/lib/billing/requireProSubscription";
+
 import { rewriteTitle } from "@/lib/ai/rewriteTitle";
 
 type RewriteTitleRequest = {
@@ -8,6 +13,8 @@ type RewriteTitleRequest = {
 
 export async function POST(request: Request) {
   try {
+    await requireProSubscription();
+
     const body =
       (await request.json()) as RewriteTitleRequest;
 
@@ -35,6 +42,19 @@ export async function POST(request: Request) {
       suggestedTitle,
     });
   } catch (error) {
+    if (error instanceof SubscriptionAccessError) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+  
     const message =
       error instanceof Error
         ? error.message

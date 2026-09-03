@@ -6,13 +6,14 @@ import {
 import { createSupabaseServerClient } from "@/lib/supabase/auth-server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe/server";
+import { serverEnv } from "@/lib/env/server";
 
 type SubscriptionRecord = {
   stripe_customer_id: string | null;
 };
 
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
 ) {
   try {
     const supabase =
@@ -80,9 +81,11 @@ export async function POST(
       );
     }
 
-    const origin =
-      request.headers.get("origin") ??
-      request.nextUrl.origin;
+    const appUrl =
+      serverEnv.appUrl.replace(
+        /\/+$/,
+        "",
+      );
 
     const portalSession =
       await stripe.billingPortal.sessions.create({
@@ -90,7 +93,7 @@ export async function POST(
           subscription.stripe_customer_id,
 
         return_url:
-          `${origin}/subscription`,
+          `${appUrl}/subscription`,
       });
 
     return NextResponse.json({
