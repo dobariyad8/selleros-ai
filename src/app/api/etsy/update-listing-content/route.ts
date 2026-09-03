@@ -666,17 +666,7 @@ export async function POST(
                 "valid",
               )
           ? 400
-          : message.includes(
-                "Connect your Etsy shop",
-              ) ||
-              message.includes(
-                "access token",
-              ) ||
-              message.includes(
-                "connection has expired",
-              )
-            ? 401
-            : 500;
+          : 500;
 
     const response =
       NextResponse.json(
