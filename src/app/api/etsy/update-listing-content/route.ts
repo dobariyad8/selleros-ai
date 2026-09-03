@@ -16,6 +16,7 @@ import {
 } from "@/lib/etsy/client";
 import {
   createEtsyRepository,
+  EtsyAccessError,
 } from "@/lib/etsy/createRepository";
 import {
   supabaseAdmin,
@@ -559,6 +560,20 @@ export async function POST(
         },
       );
     }
+
+    if (error instanceof EtsyAccessError) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: error.code,
+          error: error.message,
+        },
+        {
+          status: error.status,
+        },
+      );
+    }
+
     const message =
       error instanceof Error
         ? error.message
