@@ -12,6 +12,13 @@ import type {
   SellerOsListing,
 } from "./types";
 
+import type {
+  EtsyPayment,
+  EtsyPaymentAccountLedgerEntry,
+  EtsyPaymentAccountLedgerResponse,
+  EtsyPaymentsResponse,
+} from "./financeTypes";
+
 const ETSY_API_BASE_URL =
    "https://api.etsy.com/v3/application";
 
@@ -143,6 +150,12 @@ export type EtsyListingPerformanceMetrics = {
   revenueAmount: number;
   revenueCurrency: string | null;
   capturedAt: string;
+};
+
+export type EtsyListingSalesRangeMetrics = {
+  listingId: number;
+  unitsSold: number;
+  transactionCount: number;
 };
 
 export type UploadEtsyListingImageInput = {
@@ -913,6 +926,148 @@ async getListingPerformanceMetrics(
   };
 }
 
+async getListingSalesRangeMetrics(
+  shopId: number,
+  listingId: number,
+  options: {
+    minCreated?: number;
+    maxCreated?: number;
+  } = {},
+): Promise<EtsyListingSalesRangeMetrics> {
+  if (
+    !Number.isInteger(shopId) ||
+    shopId < 1
+  ) {
+    throw new Error(
+      "A valid Etsy shop ID is required.",
+    );
+  }
+
+  if (
+    !Number.isInteger(listingId) ||
+    listingId < 1
+  ) {
+    throw new Error(
+      "A valid Etsy listing ID is required.",
+    );
+  }
+
+  const transactions:
+    EtsyListingTransaction[] = [];
+
+  const limit = 100;
+  let offset = 0;
+  let totalAvailable = 0;
+
+  do {
+    const url = new URL(
+      `${ETSY_API_BASE_URL}/shops/${shopId}/listings/${listingId}/transactions`,
+    );
+
+    url.searchParams.set(
+      "limit",
+      String(limit),
+    );
+
+    url.searchParams.set(
+      "offset",
+      String(offset),
+    );
+
+    const response =
+      await this.client.get<EtsyListingTransactionsResponse>(
+        url.toString(),
+      );
+
+    const page =
+      Array.isArray(
+        response.results,
+      )
+        ? response.results
+        : [];
+
+    transactions.push(
+      ...page,
+    );
+
+    totalAvailable =
+      response.count ??
+      transactions.length;
+
+    offset += page.length;
+
+    if (
+      page.length === 0 ||
+      page.length < limit
+    ) {
+      break;
+    }
+  } while (
+    transactions.length <
+    totalAvailable
+  );
+
+  let unitsSold = 0;
+  let transactionCount = 0;
+
+  for (
+    const transaction of transactions
+  ) {
+    const createdTimestamp =
+      transaction.paid_timestamp ??
+      transaction.created_timestamp ??
+      transaction.create_timestamp;
+
+    if (
+      typeof createdTimestamp !==
+        "number" ||
+      !Number.isFinite(
+        createdTimestamp,
+      )
+    ) {
+      continue;
+    }
+
+    if (
+      typeof options.minCreated ===
+        "number" &&
+      createdTimestamp <
+        options.minCreated
+    ) {
+      continue;
+    }
+
+    if (
+      typeof options.maxCreated ===
+        "number" &&
+      createdTimestamp >
+        options.maxCreated
+    ) {
+      continue;
+    }
+
+    transactionCount += 1;
+
+    const quantity =
+      typeof transaction.quantity ===
+        "number" &&
+      Number.isFinite(
+        transaction.quantity,
+      ) &&
+      transaction.quantity > 0
+        ? transaction.quantity
+        : 0;
+
+    unitsSold += quantity;
+  }
+
+  return {
+    listingId,
+    unitsSold,
+    transactionCount,
+  };
+}
+
   /**
    * Deletes an Etsy listing, including an incomplete draft.
    */
@@ -1162,5 +1317,196 @@ async getListingPerformanceMetrics(
       totalAvailable,
       listings,
     };
+  }
+
+  async getPaymentsForLedgerEntries(
+    shopId: number,
+    ledgerEntryIds: number[],
+  ): Promise<EtsyPayment[]> {
+    if (
+      !Number.isInteger(shopId) ||
+      shopId < 1
+    ) {
+      throw new Error(
+        "A valid Etsy shop ID is required.",
+      );
+    }
+
+    const uniqueLedgerEntryIds = [
+      ...new Set(
+        ledgerEntryIds.filter(
+          (entryId) =>
+            Number.isInteger(entryId) &&
+            entryId > 0,
+        ),
+      ),
+    ];
+
+    if (
+      uniqueLedgerEntryIds.length === 0
+    ) {
+      return [];
+    }
+
+    const payments: EtsyPayment[] = [];
+
+    const batchSize = 100;
+
+    for (
+      let index = 0;
+      index <
+      uniqueLedgerEntryIds.length;
+      index += batchSize
+    ) {
+      const batch =
+        uniqueLedgerEntryIds.slice(
+          index,
+          index + batchSize,
+        );
+
+      const url = new URL(
+        `${ETSY_API_BASE_URL}/shops/${shopId}/payment-account/ledger-entries/payments`,
+      );
+
+      url.searchParams.set(
+        "ledger_entry_ids",
+        batch.join(","),
+      );
+
+      const response =
+        await this.client.get<EtsyPaymentsResponse>(
+          url.toString(),
+        );
+
+      if (
+        Array.isArray(
+          response.results,
+        )
+      ) {
+        payments.push(
+          ...response.results,
+        );
+      }
+    }
+
+    const uniquePayments =
+      new Map<number, EtsyPayment>();
+
+    for (const payment of payments) {
+      if (
+        typeof payment.payment_id !==
+        "number"
+      ) {
+        continue;
+      }
+
+      uniquePayments.set(
+        payment.payment_id,
+        payment,
+      );
+    }
+
+    return [
+      ...uniquePayments.values(),
+    ];
+  }
+
+  async getPaymentAccountLedgerEntries(
+    shopId: number,
+    options: {
+      minCreated?: number;
+      maxCreated?: number;
+    } = {},
+  ): Promise<EtsyPaymentAccountLedgerEntry[]> {
+    if (
+      !Number.isInteger(shopId) ||
+      shopId < 1
+    ) {
+      throw new Error(
+        "A valid Etsy shop ID is required.",
+      );
+    }
+
+    const entries: EtsyPaymentAccountLedgerEntry[] =
+      [];
+
+    const limit = 100;
+    let offset = 0;
+
+    while (true) {
+      const url = new URL(
+        `${ETSY_API_BASE_URL}/shops/${shopId}/payment-account/ledger-entries`,
+      );
+
+      url.searchParams.set(
+        "limit",
+        String(limit),
+      );
+
+      url.searchParams.set(
+        "offset",
+        String(offset),
+      );
+
+      if (
+        typeof options.minCreated ===
+          "number" &&
+        Number.isFinite(
+          options.minCreated,
+        )
+      ) {
+        url.searchParams.set(
+          "min_created",
+          String(
+            Math.floor(
+              options.minCreated,
+            ),
+          ),
+        );
+      }
+
+      if (
+        typeof options.maxCreated ===
+          "number" &&
+        Number.isFinite(
+          options.maxCreated,
+        )
+      ) {
+        url.searchParams.set(
+          "max_created",
+          String(
+            Math.floor(
+              options.maxCreated,
+            ),
+          ),
+        );
+      }
+
+      const response =
+        await this.client.get<EtsyPaymentAccountLedgerResponse>(
+          url.toString(),
+        );
+
+      const page = Array.isArray(
+        response.results,
+      )
+        ? response.results
+        : [];
+
+      entries.push(...page);
+
+      if (
+        page.length === 0 ||
+        page.length < limit ||
+        entries.length >=
+          (response.count ?? entries.length)
+      ) {
+        break;
+      }
+
+      offset += page.length;
+    }
+
+    return entries;
   }
 }

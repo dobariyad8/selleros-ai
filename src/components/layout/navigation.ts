@@ -2,6 +2,7 @@ import {
   BarChart3,
   ChartNoAxesCombined,
   CreditCard,
+  DollarSign,
   FileClock,
   FilePlus2,
   FileSearch,
@@ -121,6 +122,13 @@ export const navigationItems: NavigationItem[] = [
     name: "Analytics",
     href: "/analytics",
     icon: BarChart3,
+  },
+  {
+    type: "link",
+    name: "Profit & Finance",
+    href: "/profit-finance",
+    icon: DollarSign,
+    proOnly: true,
   },
   {
     type: "link",
